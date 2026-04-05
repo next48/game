@@ -1,0 +1,2390 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vampire Street — Suck Up! (Indie Edition)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050508;
+            --panel: rgba(0, 0, 0, 0.85);
+            --red: #d91e18;
+            --red-glow: #ff2a2a;
+            --gold: #f39c12;
+            --text: #ecf0f1;
+            --muted: #888;
+            --border: #fff;
+            --shadow: 6px 6px 0px rgba(0,0,0,1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            background: var(--bg); 
+            font-family: 'VT323', monospace; 
+            color: var(--text); 
+            overflow: hidden; 
+            /* Отключаем сглаживание шрифтов для тру-пикселей */
+            -webkit-font-smoothing: none;
+        }
+        /* Установили фиксированную позицию и z-index между фоном и кнопками */
+        canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; position: fixed; inset: 0; z-index: 20; }
+
+        h1, h2, h3, .pixel-font { font-family: 'Press Start 2P', cursive; }
+
+        /* ─── LOADING ─── */
+        #loading-screen {
+            position: fixed; inset: 0; background: #000;
+            z-index: 5000; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 30px;
+        }
+        #loading-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: clamp(16px, 4vw, 32px);
+            color: var(--red);
+            text-shadow: 4px 4px 0px #550000;
+            text-align: center;
+            line-height: 1.5;
+        }
+        #status-text { font-family: 'Press Start 2P', cursive; font-size: 10px; color: var(--gold); }
+        .loader-bar { 
+            width: 300px; height: 24px; background: #000; 
+            border: 4px solid var(--border); box-shadow: var(--shadow);
+            position: relative;
+        }
+        #loader-fill { width: 0%; height: 100%; background: var(--red); transition: width 0.4s steps(10); }
+        .loader-sub { font-size: 20px; color: var(--muted); }
+
+        /* ─── MAIN MENU BACKGROUND (САМЫЙ НИЖНИЙ СЛОЙ МЕНЮ) ─── */
+        #main-menu-bg {
+            position: fixed; inset: 0; 
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            z-index: 10; display: none; overflow: hidden;
+        }
+
+        #flower-container { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+        .bg-flower { position: absolute; font-size: 40px; animation: flowerSpin 10s linear infinite, flowerFloat 15s ease-in-out infinite alternate; opacity: 0.7; }
+        @keyframes flowerSpin { 100% {transform: rotate(360deg);} }
+        @keyframes flowerFloat { 0%,100% {margin-top: 0;} 50% {margin-top: -30px;} }
+
+        /* ─── MAIN MENU UI (ПОВЕРХ 3D ПЛЕЕРА) ─── */
+        #main-menu {
+            position: fixed; inset: 0; 
+            background: transparent;
+            z-index: 30; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+            overflow: hidden;
+            pointer-events: none; /* Пропускаем клики сквозь пустоты к 3D плееру */
+        }
+        /* Возвращаем кликабельность кнопкам и тексту */
+        .menu-title, .menu-subtitle, .menu-btn, .menu-chars {
+            pointer-events: auto;
+        }
+
+        .menu-title { font-family: 'Press Start 2P', cursive; font-size: clamp(20px, 4vw, 36px); color: #fff; text-shadow: 4px 4px 0 #d81b60; text-align: center; line-height: 1.5; z-index: 2; margin-bottom: 10px; }
+        .menu-subtitle { font-family: 'Press Start 2P', cursive; font-size: clamp(12px, 2.5vw, 20px); color: #fff; text-shadow: 2px 2px 0 #d81b60; text-align: center; margin-bottom: 40px; z-index: 2; animation: blink 1s step-end infinite; }
+        
+        .menu-btn {
+            background: #ff69b4; border: 4px solid #fff; color: #fff; font-family: 'Press Start 2P', cursive; font-size: 16px;
+            padding: 15px 30px; cursor: pointer; box-shadow: 6px 6px 0 #d81b60; transition: transform 0.1s, box-shadow 0.1s; width: 260px; z-index: 2;
+        }
+        .menu-btn:hover { background: #ff1493; transform: translate(-2px, -2px); box-shadow: 8px 8px 0 #d81b60; }
+        .menu-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #d81b60; }
+
+        .menu-chars { display: flex; gap: 80px; margin-top: 50px; z-index: 2; }
+        .menu-char { font-size: 70px; cursor: pointer; position: relative; user-select: none; filter: drop-shadow(4px 4px 0px rgba(216,27,96,0.5)); transition: transform 0.1s; }
+        .menu-char:active { transform: scale(0.9); }
+        .menu-char.oliver { animation: menuBounce 1.2s infinite; }
+        .menu-char.lutik { animation: menuHover 2s infinite ease-in-out; }
+        
+        .char-bubble {
+            position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+            background: #fff; color: #d81b60; border: 2px solid #d81b60; padding: 8px 12px;
+            font-family: 'Press Start 2P', cursive; font-size: 10px; border-radius: 8px; white-space: nowrap; pointer-events: none;
+            animation: floatUpMsg 1.5s forwards; opacity: 0; box-shadow: 3px 3px 0 rgba(216,27,96,0.4); z-index: 10;
+        }
+        @keyframes floatUpMsg { 0% { top: -20px; opacity: 1; } 80% { opacity: 1; } 100% { top: -70px; opacity: 0; } }
+
+        /* ─── PAUSE MENU ─── */
+        #pause-menu {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 4400;
+            display: none; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+            backdrop-filter: blur(4px);
+        }
+        .pause-title { font-family: 'Press Start 2P', cursive; font-size: 32px; color: var(--gold); text-shadow: 4px 4px 0 #000; margin-bottom: 20px; }
+
+        /* ─── SETTINGS ─── */
+        #settings-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 4600;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        #settings-overlay.active { display: flex; }
+        .settings-box {
+            background: #000; border: 4px solid var(--border); box-shadow: var(--shadow);
+            padding: 30px; width: 450px; max-width: 90vw;
+            display: flex; flex-direction: column; text-align: center;
+        }
+        .settings-title { font-family: 'Press Start 2P', cursive; font-size: 20px; color: var(--gold); margin-bottom: 20px; }
+        .settings-scroll-area {
+            max-height: 50vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-right: 15px;
+            scrollbar-width: thin; scrollbar-color: var(--gold) #000;
+        }
+        .settings-scroll-area::-webkit-scrollbar { width: 10px; }
+        .settings-scroll-area::-webkit-scrollbar-track { background: #000; border-left: 2px solid #333; }
+        .settings-scroll-area::-webkit-scrollbar-thumb { background: var(--gold); }
+
+        .vol-slider-row { display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%; }
+        .vol-label { font-family: 'Press Start 2P', cursive; font-size: 12px; color: var(--text); }
+        input[type=range] { width: 90%; cursor: pointer; accent-color: var(--red); height: 8px; background: #333; outline: none; -webkit-appearance: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: var(--gold); border: 2px solid #fff; cursor: pointer; }
+
+        /* ─── CLASS SELECT ─── */
+        #shop-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 3000; display: none; flex-direction: column;
+            align-items: center; justify-content: center; gap: 40px;
+        }
+        #shop-overlay h1 {
+            font-size: clamp(14px, 3vw, 24px);
+            color: var(--gold);
+            text-shadow: 4px 4px 0px #553300;
+            text-align: center;
+        }
+        #shop-overlay p { font-size: 24px; max-width: 500px; text-align: center; line-height: 1.2; }
+        .class-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+        .class-card {
+            background: #000;
+            border: 4px solid var(--border);
+            padding: 24px 32px;
+            cursor: pointer;
+            text-align: center;
+            min-width: 180px;
+            box-shadow: var(--shadow);
+            transition: transform 0.1s;
+        }
+        .class-card .icon { font-size: 40px; margin-bottom: 12px; }
+        .class-card .label { font-family: 'Press Start 2P', cursive; font-size: 12px; color: var(--gold); margin-bottom: 10px; }
+        .class-card .desc { font-size: 18px; color: var(--text); }
+        .class-card:hover { background: #110000; border-color: var(--red); transform: translate(-2px, -2px); box-shadow: 8px 8px 0px #000; }
+        .class-card:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+
+        /* ─── HUD ─── */
+        #hud {
+            position: fixed; top: 20px; left: 20px;
+            z-index: 50; pointer-events: none;
+            display: none; /* Скрыто в меню */
+            flex-direction: column; gap: 15px;
+        }
+        .hud-card {
+            background: var(--panel);
+            border: 4px solid var(--border);
+            padding: 12px 16px;
+            box-shadow: 4px 4px 0px #000;
+        }
+        .hud-label { font-family: 'Press Start 2P', cursive; font-size: 8px; color: var(--muted); margin-bottom: 8px; }
+        .hud-val { font-family: 'Press Start 2P', cursive; font-size: 16px; color: var(--red); }
+        #costume-label { font-family: 'Press Start 2P', cursive; font-size: 12px; color: var(--gold); }
+
+        /* ─── DIALOGUE ─── */
+        #dialogue-overlay {
+            position: fixed; inset: 0;
+            background: transparent;
+            display: none; justify-content: center; align-items: flex-end;
+            z-index: 2000; padding-bottom: 40px;
+        }
+        #dialogue-overlay.active { display: flex; }
+        .chat-container {
+            width: min(700px, 95vw);
+            background: #000;
+            padding: 24px;
+            border: 4px solid var(--border);
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.9);
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .chat-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 4px dashed #333; padding-bottom: 10px; }
+        #npc-name { font-family: 'Press Start 2P', cursive; font-size: 14px; color: var(--gold); }
+        #close-chat {
+            font-family: 'Press Start 2P', cursive; background: none; border: 2px solid transparent; color: var(--text);
+            font-size: 16px; cursor: pointer; padding: 4px; transition: 0.1s;
+        }
+        #close-chat:hover { background: var(--red); border-color: var(--border); }
+
+        /* Trust bar */
+        .trust-section { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+        .trust-label { display: flex; justify-content: space-between; font-family: 'Press Start 2P', cursive; font-size: 8px; color: var(--muted); }
+        #trust-pct { color: var(--gold); }
+        .trust-track { height: 12px; background: #111; border: 2px solid #444; }
+        #trust-fill { height: 100%; width: 0%; background: var(--red); transition: width 0.3s steps(10); }
+
+        #messages {
+            height: 200px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 12px;
+            padding-right: 10px;
+            scrollbar-width: thin; scrollbar-color: var(--gold) #000;
+        }
+        #messages::-webkit-scrollbar { width: 10px; }
+        #messages::-webkit-scrollbar-track { background: #000; border-left: 2px solid #333; }
+        #messages::-webkit-scrollbar-thumb { background: var(--gold); }
+
+        .bubble {
+            padding: 12px;
+            font-size: 24px;
+            line-height: 1.2;
+            white-space: pre-wrap;
+            border: 2px solid;
+            box-shadow: 3px 3px 0px #000;
+        }
+        .bubble.npc { background: #111; border-color: var(--border); align-self: flex-start; max-width: 85%; }
+        .bubble.player { background: #2a0a0a; border-color: var(--red); align-self: flex-end; max-width: 85%; color: #ffcccc; }
+        .bubble.system { background: #221a00; border-color: var(--gold); align-self: center; font-size: 20px; color: var(--gold); text-align: center; max-width: 100%; font-family: 'Press Start 2P', cursive; font-size: 10px; padding: 10px; }
+        .bubble.typing { border-color: transparent; box-shadow: none; background: none; animation: blink 1s step-end infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .chat-input-row { display: flex; gap: 10px; }
+        #chat-input {
+            flex: 1; background: #000; border: 4px solid var(--border);
+            padding: 12px; color: var(--text);
+            font-family: 'VT323', monospace; font-size: 24px; outline: none;
+        }
+        #chat-input:focus { border-color: var(--gold); }
+        #chat-send {
+            font-family: 'Press Start 2P', cursive; font-size: 12px;
+            background: var(--red); border: 4px solid var(--border); color: white;
+            padding: 0 20px; cursor: pointer; box-shadow: 4px 4px 0px #000;
+        }
+        #chat-send:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+
+        /* ─── PROMPTS ─── */
+        #hint {
+            position: fixed; bottom: 18%; left: 50%; transform: translateX(-50%);
+            background: #000; border: 4px solid var(--border); box-shadow: var(--shadow);
+            padding: 12px 24px; display: none;
+            font-family: 'VT323', monospace; font-size: 26px; z-index: 100;
+            text-align: center;
+        }
+        #hint kbd { color: var(--gold); font-family: 'Press Start 2P', cursive; font-size: 12px; }
+        
+        #kill-prompt {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-family: 'Press Start 2P', cursive; font-size: clamp(12px, 3vw, 20px);
+            display: none; text-align: center; z-index: 100;
+            background: var(--red); color: white;
+            padding: 20px 30px; border: 6px solid #fff;
+            box-shadow: 8px 8px 0px #000;
+            animation: pixelPulse 1s steps(2, end) infinite;
+        }
+        @keyframes pixelPulse { 0%,100%{background:var(--red); border-color:#fff;} 50%{background:#fff; border-color:var(--red); color:var(--red);} }
+
+        #crosshair {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 8px; height: 8px; background: #fff; z-index: 100; mix-blend-mode: difference;
+            display: none; /* Скрыто в меню */
+        }
+
+        #kill-flash {
+            position: fixed; inset: 0; background: var(--red);
+            z-index: 200; pointer-events: none; opacity: 0;
+        }
+        #kill-flash.active { opacity: 0.8; }
+
+        /* ─── CONTROLS HINT ─── */
+        #controls {
+            position: fixed; bottom: 20px; left: 20px;
+            background: var(--panel); border: 4px solid var(--border); box-shadow: 4px 4px 0px #000;
+            padding: 12px 16px; font-size: 20px; color: var(--muted);
+            line-height: 1.5; z-index: 50; pointer-events: none;
+            display: none; /* Скрыто в меню */
+        }
+        #controls kbd { color: var(--text); font-family: 'Press Start 2P', cursive; font-size: 8px; }
+
+        /* ─── REPUTATION ─── */
+        .rep-bar-track { height: 12px; background: #111; border: 2px solid #444; margin: 4px 0 8px; width: 100px; }
+        #rep-bar { height: 100%; width: 100%; background: #22cc44; transition: width 0.2s steps(5), background 0.2s; }
+        #rep-val { font-family: 'Press Start 2P', cursive; font-size: 10px; color: var(--gold); }
+
+        /* ─── WARDROBE ─── */
+        #wardrobe-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            z-index: 2500; display: none; justify-content: center; align-items: center;
+        }
+        #wardrobe-overlay.active { display: flex; }
+        .wardrobe-box {
+            background: #000; border: 4px solid var(--border); box-shadow: var(--shadow);
+            padding: 30px; text-align: center; display: flex; flex-direction: column; gap: 20px;
+        }
+        .wardrobe-title { font-family: 'Press Start 2P', cursive; font-size: 16px; color: var(--gold); margin-bottom: 10px; }
+        .wardrobe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .w-card {
+            background: #111; border: 4px solid #444; padding: 20px; cursor: pointer;
+            font-size: 24px; transition: 0.1s;
+        }
+        .w-card:hover { border-color: var(--gold); background: #221a00; transform: translate(-2px, -2px); box-shadow: 4px 4px 0px #000; }
+        .w-close {
+            font-family: 'Press Start 2P', cursive; font-size: 12px;
+            background: #000; border: 4px solid var(--border); color: var(--text);
+            padding: 14px 24px; cursor: pointer; margin-top: 10px; box-shadow: 4px 4px 0px #000;
+        }
+        .w-close:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+
+        /* ─── POLICE ALERT ─── */
+        #police-alert {
+            position: fixed; top: 0; left: 0; right: 0;
+            background: #000; border-bottom: 4px solid #00f;
+            color: #fff; font-family: 'Press Start 2P', cursive;
+            font-size: clamp(10px, 2vw, 16px);
+            padding: 16px; text-align: center;
+            z-index: 200; display: none;
+            animation: policeFlash 0.3s steps(2, end) infinite;
+        }
+        @keyframes policeFlash { 0%,100%{background:#000; color:#00f;} 50%{background:#00f; color:#fff;} }
+        #police-alert.active { display: block; }
+        
+        #bush-hint {
+            position: fixed; bottom: 25%; left: 50%; transform: translateX(-50%);
+            background: #000; border: 4px solid #0f0; color: #0f0;
+            padding: 12px 20px; font-family: 'VT323', monospace; font-size: 28px;
+            z-index: 200; display: none; box-shadow: var(--shadow);
+            text-align: center; animation: blink 1s step-end infinite;
+        }
+        #bush-hint.active { display: block; }
+
+        /* ─── VHS EFFECT ─── */
+        #vhs-overlay {
+            position: fixed; inset: 0; z-index: 92; pointer-events: none;
+            background: repeating-linear-gradient( 0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 2px, transparent 2px, transparent 4px );
+            display: none; /* Скрыто в меню */
+        }
+        @keyframes vhsFlicker { 0%,95%,100% { opacity: 1; } 97% { opacity: 0.8; } }
+        #game-canvas { animation: vhsFlicker 4s steps(1) infinite; filter: saturate(0.8) contrast(1.3) brightness(0.9); }
+        #vhs-glitch {
+            position: fixed; left: 0; right: 0; height: 5px; background: rgba(255,255,255,0.1);
+            z-index: 93; pointer-events: none; animation: vhsGlitchMove 8s linear infinite;
+            display: none; /* Скрыто в меню */
+        }
+        @keyframes vhsGlitchMove { 0% { top: -10px; } 100% { top: 105vh; } }
+        #vhs-noise { 
+            position: fixed; inset: 0; z-index: 91; pointer-events: none; opacity: 0.06; animation: vhsShift 0.1s steps(2) infinite; 
+            display: none; /* Скрыто в меню */
+        }
+        @keyframes vhsShift { 0% { transform: translate(0,0); } 50% { transform: translate(-2px, 2px); } }
+
+        /* ─── DEATH SCREEN ─── */
+        #death-screen {
+            position: fixed; inset: 0; background: rgba(0,0,0,0);
+            z-index: 5000; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 30px;
+        }
+        #death-screen.active { display: flex; background: rgba(10,0,0,0.9); }
+        #death-title {
+            font-family: 'Press Start 2P', cursive; font-size: clamp(24px, 5vw, 48px);
+            color: var(--red); text-shadow: 4px 4px 0px #000; animation: deathPulse 1s steps(2) infinite;
+        }
+        @keyframes deathPulse { 0%,100%{color:var(--red);} 50%{color:#550000;} }
+        #death-sub { font-family: 'VT323', monospace; font-size: 32px; color: var(--text); }
+        #death-restart {
+            font-family: 'Press Start 2P', cursive; font-size: 16px;
+            background: #000; border: 4px solid var(--red); color: var(--red);
+            padding: 16px 32px; cursor: pointer; box-shadow: 6px 6px 0px #000;
+        }
+        #death-restart:hover { background: var(--red); color: #fff; border-color: #fff; }
+        #death-restart:active { transform: translate(2px, 2px); box-shadow: 4px 4px 0px #000; }
+
+        /* ─── PUZZLE OVERLAY ─── */
+        #puzzle-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            z-index: 3500; display: none; justify-content: center; align-items: center;
+        }
+        #puzzle-overlay.active { display: flex; }
+        .puzzle-box {
+            background: #000; border: 4px solid var(--gold); box-shadow: var(--shadow);
+            padding: 30px; max-width: 520px; width: 92vw;
+            display: flex; flex-direction: column; gap: 24px; position: relative;
+        }
+        .puzzle-title { font-family: 'Press Start 2P', cursive; font-size: 14px; color: var(--gold); text-align: center; }
+        .puzzle-desc { font-size: 26px; color: var(--text); line-height: 1.4; text-align: center; }
+        .puzzle-input-row { display: flex; gap: 10px; }
+        .puzzle-input {
+            flex: 1; background: #111; border: 4px solid var(--border); color: var(--text);
+            font-family: 'VT323', monospace; font-size: 32px; padding: 10px 16px; text-align: center; outline: none;
+        }
+        .puzzle-input:focus { border-color: var(--gold); }
+        .puzzle-btn {
+            background: var(--gold); border: 4px solid var(--border); color: #000;
+            font-family: 'Press Start 2P', cursive; font-size: 12px; padding: 0 20px; cursor: pointer; box-shadow: 4px 4px 0px #000;
+        }
+        .puzzle-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+        .puzzle-close {
+            position: absolute; top: -20px; right: -20px;
+            background: #000; border: 4px solid var(--border); color: #fff;
+            font-family: 'Press Start 2P', cursive; font-size: 16px; width: 40px; height: 40px; cursor: pointer; box-shadow: 4px 4px 0px #000;
+        }
+        .puzzle-close:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+        .puzzle-status { font-family: 'Press Start 2P', cursive; font-size: 10px; text-align: center; min-height: 20px; line-height: 1.5; }
+        .puzzle-status.ok  { color: #0f0; }
+        .puzzle-status.err { color: var(--red); }
+        .morse-btn {
+            background: #000; border: 4px solid var(--red); color: var(--red);
+            font-family: 'Press Start 2P', cursive; font-size: 10px; padding: 14px; cursor: pointer; align-self: center; box-shadow: 4px 4px 0px #000;
+        }
+        .morse-btn:hover { background: var(--red); color: #fff; border-color: #fff; }
+        .morse-btn:active { transform: translate(2px,2px); box-shadow: 2px 2px 0px #000; }
+
+        /* ─── CODE PANEL ─── */
+        #code-panel {
+            position: fixed; top: 20px; right: 20px;
+            background: #000; border: 4px solid var(--border); box-shadow: 4px 4px 0px #000;
+            padding: 14px 20px; z-index: 50; display: none;
+        }
+        #code-panel.visible { display: block; }
+        .code-label { font-family: 'Press Start 2P', cursive; font-size: 8px; color: var(--muted); margin-bottom: 12px; text-align: center; }
+        .code-digits { display: flex; gap: 8px; justify-content: center; }
+        .code-digit {
+            width: 30px; height: 38px; background: #111;
+            border: 2px solid #444; display: flex; align-items: center; justify-content: center;
+            font-family: 'Press Start 2P', cursive; font-size: 16px; color: #444;
+        }
+        .code-digit.filled { border-color: var(--gold); background: #221a00; color: var(--gold); }
+
+        /* ─── FINAL CODE ENTRY ─── */
+        #final-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+            z-index: 6000; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 30px;
+        }
+        #final-overlay.active { display: flex; }
+        #final-title { font-family: 'Press Start 2P', cursive; font-size: clamp(16px,4vw,24px); color: var(--gold); text-shadow: 4px 4px 0px #553300; text-align: center; }
+        #final-desc { font-size: 24px; text-align: center; max-width: 500px; }
+        .final-input-row { display: flex; gap: 10px; }
+        .final-digit-input {
+            width: 50px; height: 60px; background: #000;
+            border: 4px solid var(--border); color: var(--gold);
+            font-family: 'Press Start 2P', cursive; font-size: 24px; text-align: center; outline: none;
+        }
+        .final-digit-input:focus { border-color: var(--gold); }
+        #final-submit {
+            background: var(--gold); border: 4px solid var(--border); color: #000;
+            font-family: 'Press Start 2P', cursive; font-size: 16px; padding: 16px 40px; cursor: pointer; box-shadow: 6px 6px 0px #000;
+        }
+        #final-submit:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+        #final-status { font-family: 'Press Start 2P', cursive; font-size: 12px; color: var(--red); min-height: 20px; }
+
+        /* ─── BIRTHDAY EXPLOSION ─── */
+        #birthday-screen {
+            position: fixed; inset: 0; background: #000;
+            z-index: 7000; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 30px; overflow: hidden;
+        }
+        #birthday-screen.active { display: flex; }
+        #birthday-canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+        #birthday-text {
+            position: relative; z-index: 1; font-family: 'Press Start 2P', cursive; font-size: clamp(20px, 5vw, 40px);
+            color: #fff; text-shadow: 6px 6px 0px var(--red), -4px -4px 0px var(--gold);
+            text-align: center; line-height: 1.5; padding: 0 20px;
+            animation: bdayPop 0.5s steps(5) both;
+        }
+        @keyframes bdayPop { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+        #gift-location { position: relative; z-index: 1; font-size: 32px; color: var(--gold); text-align: center; max-width: 600px; padding: 0 20px; }
+
+        /* ─── ACHIEVEMENTS ─── */
+        #achievement-container {
+            position: fixed; bottom: 20px; right: 20px;
+            display: flex; flex-direction: column; gap: 10px;
+            z-index: 9999; pointer-events: none;
+        }
+        .achievement {
+            background: #111; border: 4px solid var(--gold);
+            box-shadow: 4px 4px 0px #000; padding: 15px;
+            display: flex; align-items: center; gap: 15px; width: 320px;
+            transform: translateX(120%);
+            animation: slideInAch 0.5s forwards, slideOutAch 0.5s 4s forwards;
+        }
+        .ach-icon { font-size: 30px; }
+        .ach-text { display: flex; flex-direction: column; gap: 6px; }
+        .ach-title { font-family: 'Press Start 2P', cursive; font-size: 10px; color: var(--gold); }
+        .ach-desc { font-family: 'VT323', monospace; font-size: 18px; color: var(--text); line-height: 1; }
+        @keyframes slideInAch { to { transform: translateX(0); } }
+        @keyframes slideOutAch { to { transform: translateX(120%); } }
+
+        @media (max-width: 600px) {
+            .class-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .class-card { padding: 15px; min-width: 130px; }
+            #controls { display: none; } 
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading-screen">
+    <div id="loading-title">VAMPIRE STREET<br><span style="color:#fff; font-size: 0.5em;">INDIE EDITION</span></div>
+    <div id="status-text">ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ...</div>
+    <div class="loader-bar"><div id="loader-fill"></div></div>
+    <div class="loader-sub pixel-font" style="font-size: 10px;">Генерация пикселей...</div>
+</div>
+
+<!-- ─── MAIN MENU BACKGROUND (КРАСИВЫЙ ФОН И ЦВЕТЫ ПОЗАДИ ПЛЕЕРА) ─── -->
+<div id="main-menu-bg">
+    <div id="flower-container"></div>
+</div>
+
+<!-- 3D КАНВАС (ЗДЕСЬ РИСУЕТСЯ MP3 ПЛЕЕР) ВСТРАИВАЕТСЯ МЕЖДУ ФОНОМ И КНОПКАМИ -->
+<canvas id="game-canvas"></canvas>
+
+<!-- ─── MAIN MENU UI (КНОПКИ И ТЕКСТ ПОВЕРХ ВСЕГО) ─── -->
+<div id="main-menu">
+    <div class="menu-title">С ДНЕМ РОЖДЕНИЯ<br>ЛЮБИМАЯ!</div>
+    <div class="menu-subtitle">ИГРОВОЙ ПОДАРОК</div>
+    
+    <button class="menu-btn" onclick="startGameFromMenu()">ИГРАТЬ</button>
+    <button class="menu-btn" onclick="openSettings()">НАСТРОЙКИ</button>
+    <button class="menu-btn" onclick="exitGame()">ВЫХОД</button>
+
+    <div class="menu-chars">
+        <div class="menu-char oliver" onclick="pokeOliver(this)">🐕</div>
+        <div class="menu-char lutik" onclick="pokeLutik(this)">🐦</div>
+    </div>
+</div>
+
+<!-- ─── PAUSE MENU ─── -->
+<div id="pause-menu">
+    <div class="pause-title">ПАУЗА</div>
+    <button class="menu-btn" onclick="togglePause()" style="background:var(--panel); border-color:var(--gold); color:var(--gold); box-shadow: 4px 4px 0 #000;">ПРОДОЛЖИТЬ</button>
+    <button class="menu-btn" onclick="openSettings()" style="background:var(--panel); border-color:var(--gold); color:var(--gold); box-shadow: 4px 4px 0 #000;">НАСТРОЙКИ</button>
+    <button class="menu-btn" onclick="exitGame()" style="background:var(--panel); border-color:var(--gold); color:var(--gold); box-shadow: 4px 4px 0 #000;">ВЫХОД</button>
+</div>
+
+<!-- ─── SETTINGS OVERLAY ─── -->
+<div id="settings-overlay">
+    <div class="settings-box" style="padding: 30px; width: 450px;">
+        <div class="settings-title">НАСТРОЙКИ ЗВУКА</div>
+        <div class="settings-scroll-area">
+            <div class="vol-slider-row"><div class="vol-label">МУЗЫКА В МЕНЮ</div><input type="range" id="vol-menu" min="0" max="1" step="0.05" oninput="changeVol('menu', this.value)"></div>
+            <div class="vol-slider-row"><div class="vol-label">МУЗЫКА В ИГРЕ</div><input type="range" id="vol-game" min="0" max="1" step="0.05" oninput="changeVol('game', this.value)"></div>
+            <div class="vol-slider-row"><div class="vol-label">MP3 ПЛЕЕР</div><input type="range" id="vol-mp3" min="0" max="1" step="0.05" oninput="changeVol('mp3', this.value)"></div>
+            <div class="vol-slider-row"><div class="vol-label">ШАГИ</div><input type="range" id="vol-steps" min="0" max="1" step="0.05" oninput="changeVol('steps', this.value)"></div>
+            <div class="vol-slider-row"><div class="vol-label">МАШИНЫ</div><input type="range" id="vol-cars" min="0" max="1" step="0.05" oninput="changeVol('cars', this.value)"></div>
+            <div class="vol-slider-row"><div class="vol-label">ПОЛИЦИЯ</div><input type="range" id="vol-police" min="0" max="1" step="0.05" oninput="changeVol('police', this.value)"></div>
+            <div class="vol-slider-row"><div class="vol-label">ДИАЛОГИ</div><input type="range" id="vol-dialog" min="0" max="1" step="0.05" oninput="changeVol('dialog', this.value)"></div>
+            <div class="vol-slider-row"><div class="vol-label">ЭФФЕКТЫ (Морзе и др.)</div><input type="range" id="vol-sfx" min="0" max="1" step="0.05" oninput="changeVol('sfx', this.value)"></div>
+        </div>
+        <button class="w-close" onclick="closeSettings()" style="margin-top: 20px;">НАЗАД</button>
+    </div>
+</div>
+
+<div id="shop-overlay">
+    <h1>ВЫБЕРИ МАСКИРОВКУ</h1>
+    <p>Убеди жителей впустить тебя — и тогда... действуй.</p>
+    <div class="class-grid">
+        <div class="class-card" onclick="selectClass('Курьер')">
+            <div class="icon">📦</div>
+            <div class="label">КУРЬЕР</div>
+            <div class="desc">«Посылка для вас!»</div>
+        </div>
+        <div class="class-card" onclick="selectClass('Офицер')">
+            <div class="icon">👮</div>
+            <div class="label">ОФИЦЕР</div>
+            <div class="desc">«Полиция, откройте»</div>
+        </div>
+        <div class="class-card" onclick="selectClass('Сантехник')">
+            <div class="icon">🔧</div>
+            <div class="label">САНТЕХНИК</div>
+            <div class="desc">«Труба прорвала...»</div>
+        </div>
+        <div class="class-card" onclick="selectClass('Сосед')">
+            <div class="icon">🚶</div>
+            <div class="label">СОСЕД</div>
+            <div class="desc">«Мы же знакомы»</div>
+        </div>
+    </div>
+</div>
+
+<div id="vhs-overlay"></div>
+<div id="vhs-glitch"></div>
+<canvas id="vhs-noise"></canvas>
+<div id="crosshair"></div>
+<div id="kill-flash"></div>
+
+<div id="death-screen">
+    <div id="death-title">ВЫ ПОГИБЛИ</div>
+    <div id="death-sub" id="death-reason">Машина сбила вас насмерть</div>
+    <button id="death-restart" onclick="restartGame()">RESTART</button>
+</div>
+
+<div id="hint"><kbd>E</kbd> ДЕЙСТВИЕ</div>
+<div id="kill-prompt">ЛКМ - УКУСИТЬ!</div>
+
+<div id="hud">
+    <div class="hud-card">
+        <div class="hud-label">ЖЕРТВ</div>
+        <div class="hud-val" id="score-val">0</div>
+    </div>
+    <div class="hud-card">
+        <div class="hud-label">ПЕЧЕНЬКИ</div>
+        <div class="hud-val" id="cookie-val">0</div>
+    </div>
+    <div class="hud-card">
+        <div class="hud-label">МАСКИРОВКА</div>
+        <div id="costume-label">—</div>
+    </div>
+    <div class="hud-card" id="rep-card">
+        <div class="hud-label">РЕПУТАЦИЯ</div>
+        <div class="rep-bar-track"><div id="rep-bar"></div></div>
+        <div id="rep-val">100</div>
+    </div>
+</div>
+
+<!-- Wardrobe overlay -->
+<div id="wardrobe-overlay">
+    <div class="wardrobe-box">
+        <div class="wardrobe-title">ГАРДЕРОБ</div>
+        <div class="wardrobe-grid">
+            <div class="w-card" onclick="changeCostume('Курьер')">📦 Курьер</div>
+            <div class="w-card" onclick="changeCostume('Офицер')">👮 Офицер</div>
+            <div class="w-card" onclick="changeCostume('Сантехник')">🔧 Сантехник</div>
+            <div class="w-card" onclick="changeCostume('Сосед')">🚶 Сосед</div>
+        </div>
+        <button class="w-close" onclick="closeWardrobe()">ЗАКРЫТЬ</button>
+    </div>
+</div>
+
+<!-- Police alert -->
+<div id="police-alert"></div>
+<div id="bush-hint">СПРЯЧЬСЯ В КУСТЫ!</div>
+
+<!-- Code panel -->
+<div id="code-panel">
+    <div class="code-label">КОД ПОДАРКА</div>
+    <div class="code-digits">
+        <div class="code-digit" id="cd-0">_</div>
+        <div class="code-digit" id="cd-1">_</div>
+        <div class="code-digit" id="cd-2">_</div>
+        <div class="code-digit" id="cd-3">_</div>
+        <div class="code-digit" id="cd-4">_</div>
+    </div>
+</div>
+
+<!-- Puzzle overlay -->
+<div id="puzzle-overlay">
+    <div class="puzzle-box">
+        <button class="puzzle-close" onclick="closePuzzle()">X</button>
+        <div class="puzzle-title" id="puzzle-title">ЗАГАДКА</div>
+        <div id="puzzle-body"></div>
+        <div class="puzzle-status" id="puzzle-status"></div>
+    </div>
+</div>
+
+<!-- Final code entry -->
+<div id="final-overlay">
+    <div id="final-title">СЕКРЕТНЫЙ КОД</div>
+    <div id="final-desc">Ты собрал все цифры. Введи 5-значный код, чтобы открыть подарок!</div>
+    <div class="final-input-row">
+        <input class="final-digit-input" id="fd-0" maxlength="1" type="text" inputmode="numeric" oninput="this.nextElementSibling?.focus()">
+        <input class="final-digit-input" id="fd-1" maxlength="1" type="text" inputmode="numeric" oninput="this.nextElementSibling?.focus()">
+        <input class="final-digit-input" id="fd-2" maxlength="1" type="text" inputmode="numeric" oninput="this.nextElementSibling?.focus()">
+        <input class="final-digit-input" id="fd-3" maxlength="1" type="text" inputmode="numeric" oninput="this.nextElementSibling?.focus()">
+        <input class="final-digit-input" id="fd-4" maxlength="1" type="text" inputmode="numeric">
+    </div>
+    <button id="final-submit" onclick="checkFinalCode()">ОТКРЫТЬ 🎁</button>
+    <button class="w-close" onclick="closeFinal()">ОТМЕНА</button>
+    <div id="final-status"></div>
+</div>
+
+<!-- Birthday explosion -->
+<div id="birthday-screen">
+    <canvas id="birthday-canvas"></canvas>
+    <div id="birthday-text">С ДНЕМ РОЖДЕНИЯ!</div>
+    <div id="gift-location">Подарок лежит...</div>
+</div>
+
+<div id="controls">
+    <kbd>WASD</kbd> Ходить <br>
+    <kbd>Shift</kbd> Бег <br>
+    <kbd>Q</kbd> Разговор <br>
+    <kbd>E</kbd> Действие <br>
+    <kbd>ЛКМ</kbd> Укусить <br>
+    <kbd>F</kbd> Гардероб <br>
+    <kbd>ESC</kbd> Пауза
+</div>
+
+<!-- Achievement Container -->
+<div id="achievement-container"></div>
+
+<div id="dialogue-overlay">
+    <div class="chat-container">
+        <div class="chat-header">
+            <div id="npc-name">?</div>
+            <button id="close-chat" title="Закрыть">X</button>
+        </div>
+
+        <div class="trust-section">
+            <div class="trust-label">
+                <span>ДОВЕРИЕ</span>
+                <span id="trust-pct">0%</span>
+            </div>
+            <div class="trust-track"><div id="trust-fill"></div></div>
+        </div>
+
+        <div id="messages"></div>
+
+        <div class="chat-input-row">
+            <input type="text" id="chat-input" placeholder="Сказать..." autocomplete="off" maxlength="200">
+            <button id="chat-send" title="Отправить">SEND</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+// --- КОНФИГ КАК В ОРИГИНАЛЕ ---
+const SECRET_WORD = "открыто";
+const FINAL_GIFT_TEXT = "приставка (ps 4)"; 
+
+const PUZZLES_CONFIG = [
+    { type: 'morse', digit: 7, desc: "Прослушай аудиозапись Морзе и введи загаданную цифру." },
+    { type: 'jigsaw', digit: 3, imageUrl: "image/OliverLitik.jpg", grid: 3, irlHint: "Дом лютика" },
+    { type: 'math', digit: 9, question: "Реши уравнение: (15 * 4) / 2 - 10 = ?", answer: "20", irlHint: "В холодильнике" },
+    { type: 'rebus', digit: 1, question: "Отгадай слово: 🌲 + 🍏 - я = ?", answer: "елкаблок", irlHint: "В твоем кроссовке" },
+    { type: 'riddle', digit: 5, question: "Я не живой, но у меня 5 пальцев. Кто я?", answer: "перчатка", irlHint: "Балкон" }
+];
+
+const GRAFFITI_TEXTS = ["С днем рождения,\nКсения!", "Мы тебя любим!\n<3", "Счастливого\nпраздника!", "Улыбайся\nчаще!", "Лучший день\nв году!", "Сюрприз!"];
+
+const GROQ_KEY = "";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+const REPUTATION_PENALTY_PER_SUSPICION = 25;
+
+// --- STATE ---
+let scene, menuScene, camera, renderer, clock, player;
+let yaw = 0, pitch = 0;
+const keys = {};
+const houses = [];
+let corgi, parrot;
+let heartParticles = [], heartMat, bloodParticles = [];
+
+let gameState = {
+    costume: "Курьер", victims: 0, activeNPC: null, isTalking: false, gameStarted: false, isPaused: false,
+    isDead: false, dead: {}, trustLevel: 0, currentConversationHistory: [], reputation: 100,
+    policeActive: false, policeTimer: 0, policePhase: 'none', policeTargetZ: 0, cookies: 0,
+    wardrobeOpen: false, puzzleOpen: false, finalOpen: false, solvedPuzzles: [false,false,false,false,false], 
+    isTypingText: false, achievements: {}, menuExited: false
+};
+
+const bushPositions = [];
+
+// --- SETTINGS LOGIC ---
+let sysSettings = {
+    menu: 0.3, game: 0.3, mp3: 0.3, steps: 0.5, cars: 0.5, police: 0.5, dialog: 0.5, sfx: 0.5
+};
+
+try {
+    const saved = localStorage.getItem('vampireSettings');
+    if (saved) sysSettings = { ...sysSettings, ...JSON.parse(saved) };
+} catch(e) {}
+
+function saveSettings() {
+    try { localStorage.setItem('vampireSettings', JSON.stringify(sysSettings)); } catch(e) {}
+}
+
+window.changeVol = function(key, val) {
+    sysSettings[key] = parseFloat(val);
+    saveSettings();
+    applyVolumes();
+}
+
+window.applyVolumes = function() {
+    if (menuMusic) menuMusic.volume = sysSettings.menu;
+    if (bgMusic) bgMusic.volume = sysSettings.game;
+    if (mp3Video) mp3Video.volume = sysSettings.mp3;
+    
+    document.getElementById('vol-menu').value = sysSettings.menu;
+    document.getElementById('vol-game').value = sysSettings.game;
+    document.getElementById('vol-mp3').value = sysSettings.mp3;
+    document.getElementById('vol-steps').value = sysSettings.steps;
+    document.getElementById('vol-cars').value = sysSettings.cars;
+    document.getElementById('vol-police').value = sysSettings.police;
+    document.getElementById('vol-dialog').value = sysSettings.dialog;
+    document.getElementById('vol-sfx').value = sysSettings.sfx;
+}
+
+// --- 3D MP3 PLAYER (MENU) VARIABLES ---
+let mp3PlayerGroup, mp3Video;
+let btnPrev, btnPlay, btnNext;
+let texPlay, texPause;
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let currentTrack = 0;
+const mp3Playlist = [
+    "music/Мой_главный_апрель.mp4",
+    "music/Личный_Армагеддон_Ксении.mp4",
+    "music/Увидимся_у_миски.mp4"
+];
+
+// --- ACHIEVEMENTS SYSTEM ---
+const ACHIEVEMENTS = {
+    pet_dog: { title: "Хороший мальчик", desc: "Погладить Оливера", icon: "🐕" },
+    talk_bird: { title: "Пернатый друг", desc: "Поговорить с Лютиком", icon: "🐦" },
+    feed_bird: { title: "Крекер для Лютика", desc: "Покормить Лютика печеньем", icon: "🍪" },
+    first_blood: { title: "Первая кровь", desc: "Убить первую жертву", icon: "🩸" },
+    puzzle_1: { title: "Детектив I", desc: "Отгадать первую загадку", icon: "🔍" },
+    puzzle_2: { title: "Детектив II", desc: "Отгадать вторую загадку", icon: "🔍" },
+    puzzle_3: { title: "Детектив III", desc: "Отгадать третью загадку", icon: "🔍" },
+    puzzle_4: { title: "Детектив IV", desc: "Отгадать четвертую загадку", icon: "🔍" },
+    all_puzzles: { title: "Взломщик", desc: "Узнать пароль от подарка", icon: "🗝️" },
+    die_car: { title: "Хрусть!", desc: "Умереть от машины", icon: "🚗" },
+    die_police: { title: "Руки вверх!", desc: "Тебя застрелила полиция", icon: "🔫" },
+    dog_trust: { title: "Лучшие друзья", desc: "100% доверия у Оливера", icon: "❤️" },
+    hide_police: { title: "Ниндзя", desc: "Спрятаться от полиции", icon: "🥷" }
+};
+
+function playAchievementSound() {
+    if(!audioCtx || audioCtx.state !== 'running') return;
+    const t = audioCtx.currentTime;
+    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, t + i * 0.1);
+        gain.gain.linearRampToValueAtTime(sysSettings.sfx, t + i * 0.1 + 0.05);
+        gain.gain.linearRampToValueAtTime(0, t + i * 0.1 + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t + i * 0.1);
+        osc.stop(t + i * 0.1 + 0.1);
+    });
+}
+
+function unlockAchievement(id) {
+    if (gameState.achievements[id]) return;
+    gameState.achievements[id] = true;
+    
+    const ach = ACHIEVEMENTS[id];
+    playAchievementSound();
+    
+    const div = document.createElement('div');
+    div.className = 'achievement';
+    div.innerHTML = `
+        <div class="ach-icon">${ach.icon}</div>
+        <div class="ach-text">
+            <div class="ach-title">${ach.title}</div>
+            <div class="ach-desc">${ach.desc}</div>
+        </div>
+    `;
+    document.getElementById('achievement-container').appendChild(div);
+    
+    setTimeout(() => {
+        if (div.parentNode) div.parentNode.removeChild(div);
+    }, 4600);
+}
+
+// --- AUDIO ---
+let audioCtx, engineGain, engineOsc, sirenOsc, sirenGain, sirenLfo, sirenLfoGain;
+let stepDistCounter = 0, bgMusic;
+let menuMusic = new Audio('music/menu.mp3'); 
+menuMusic.loop = true; 
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        engineOsc = audioCtx.createOscillator(); engineGain = audioCtx.createGain();
+        engineOsc.type = 'sawtooth'; engineOsc.frequency.value = 45; engineGain.gain.value = 0;
+        engineOsc.connect(engineGain); engineGain.connect(audioCtx.destination); engineOsc.start();
+
+        bgMusic = new Audio('music/music.mp3'); bgMusic.loop = true; 
+
+        sirenOsc = audioCtx.createOscillator(); sirenGain = audioCtx.createGain();
+        sirenLfo = audioCtx.createOscillator(); sirenLfoGain = audioCtx.createGain();
+        sirenOsc.type = 'square'; sirenOsc.frequency.value = 700; sirenLfo.type = 'square';
+        sirenLfo.frequency.value = 1.5; sirenLfoGain.gain.value = 200;
+        sirenLfo.connect(sirenLfoGain); sirenLfoGain.connect(sirenOsc.frequency);
+        sirenGain.gain.value = 0; sirenOsc.connect(sirenGain); sirenGain.connect(audioCtx.destination);
+        sirenOsc.start(); sirenLfo.start();
+        
+        applyVolumes(); // Применяем настройки при инициализации
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    // Музыка меню будет играть только если MP3 плеер не играет видео и мы в меню
+    if (!gameState.gameStarted && document.getElementById('main-menu').style.display !== 'none') {
+        if (menuMusic.paused && (!mp3Video || mp3Video.paused)) menuMusic.play().catch(e => {});
+    } else if (gameState.gameStarted) {
+        if (bgMusic && bgMusic.paused) bgMusic.play().catch(e => {});
+    }
+}
+document.addEventListener('click', initAudio, { once: true });
+document.addEventListener('keydown', initAudio, { once: true });
+
+function playUIClick() {
+    if(!audioCtx || audioCtx.state !== 'running') return;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'square'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(sysSettings.sfx * 0.1, audioCtx.currentTime); 
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+}
+
+document.addEventListener('click', (e) => {
+    if (e.target.closest('button') || e.target.closest('.class-card') || e.target.closest('.w-card') || e.target.closest('.morse-btn') || e.target.closest('.puzzle-btn') || e.target.closest('input[type="range"]')) {
+        playUIClick();
+    }
+});
+
+function playTalkSound(npcObj) {
+    if (!audioCtx || audioCtx.state !== 'running') return;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    let freq = 300 + Math.random() * 100, type = 'square';
+    if (npcObj === null) { freq = 200 + Math.random() * 50; type = 'triangle'; }
+    else if (npcObj) { if (npcObj.isDog) { freq = 150 + Math.random() * 50; type = 'sawtooth'; } if (npcObj.isBird) { freq = 800 + Math.random() * 200; type = 'triangle'; } }
+    osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(sysSettings.dialog * 0.1, audioCtx.currentTime); 
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+}
+
+function playCorgiStep() {
+    if(!audioCtx || audioCtx.state !== 'running') return;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.05);
+    gain.gain.setValueAtTime(sysSettings.sfx * 0.04, audioCtx.currentTime); 
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+}
+
+function playCorgiPet() {
+    if(!audioCtx || audioCtx.state !== 'running') return;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+    osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.2);
+    gain.gain.setValueAtTime(sysSettings.sfx * 0.1, audioCtx.currentTime); 
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+}
+
+window.playMorse = function(digit) {
+    if(!audioCtx) initAudio();
+    const morseMap = ['-----','.----','..---','...--','....-','.....','-....','--...','---..','----.'];
+    const pattern = morseMap[digit]; let time = audioCtx.currentTime;
+    pattern.split('').forEach(char => {
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'square'; osc.frequency.value = 400;
+        const duration = char === '.' ? 0.15 : 0.45;
+        gain.gain.setValueAtTime(sysSettings.sfx * 1.0, time); 
+        gain.gain.setValueAtTime(0, time + duration - 0.02);
+        osc.start(time); osc.stop(time + duration); time += duration + 0.15;
+    });
+};
+
+function playStepSound(isRun) {
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(isRun ? 120 : 80, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(sysSettings.steps * 0.2, audioCtx.currentTime); 
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+}
+
+function playBiteSound() {
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.3);
+    gain.gain.setValueAtTime(sysSettings.sfx * 1.0, audioCtx.currentTime); 
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+}
+
+function updateEngineSound(closestCarDist) {
+    if (engineGain) {
+        if (closestCarDist < 80) { 
+            let vol = 1 - (closestCarDist / 80); 
+            engineGain.gain.setTargetAtTime(vol * sysSettings.cars * 0.2, audioCtx.currentTime, 0.1); 
+            engineOsc.frequency.setTargetAtTime(45 + (vol * 30), audioCtx.currentTime, 0.1); 
+        } 
+        else { engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1); }
+    }
+}
+function updateSirenSound() {
+    if (!sirenGain) return;
+    if (gameState.policeActive && gameState.policePhase !== 'none' && !gameState.isDead) {
+        let vol = sysSettings.police * 0.04; 
+        if (gameState.policeCar) { 
+            let dist = player.position.distanceTo(gameState.policeCar.position); 
+            vol = Math.max(0, (sysSettings.police * 0.2) - (dist / 1000) * (sysSettings.police * 0.2)); 
+        }
+        sirenGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.5);
+    } else { sirenGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5); }
+}
+
+// --- MAIN / PAUSE MENU FUNCTIONS ---
+window.startGameFromMenu = function() {
+    playUIClick();
+    
+    // Жестко останавливаем музыку меню
+    menuMusic.pause();
+    menuMusic.currentTime = 0;
+    
+    // Ставим на паузу 3D видео плеер и сбрасываем
+    if (mp3Video) {
+        mp3Video.pause();
+        mp3Video.currentTime = 0;
+    }
+
+    document.getElementById('main-menu-bg').style.display = 'none';
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('shop-overlay').style.display = 'flex';
+    
+    // Начинаем играть эмбиент
+    if (bgMusic && bgMusic.paused) bgMusic.play().catch(e => {});
+}
+
+window.togglePause = function() {
+    if (!gameState.gameStarted || gameState.isDead) return;
+    if (gameState.isTalking || gameState.wardrobeOpen || gameState.puzzleOpen || gameState.finalOpen) return;
+
+    gameState.isPaused = !gameState.isPaused;
+    playUIClick();
+    if (gameState.isPaused) {
+        document.getElementById('pause-menu').style.display = 'flex';
+        if (document.pointerLockElement) document.exitPointerLock();
+    } else {
+        document.getElementById('pause-menu').style.display = 'none';
+        document.getElementById('game-canvas').requestPointerLock().catch(() => {});
+    }
+}
+
+window.openSettings = function() { playUIClick(); document.getElementById('settings-overlay').classList.add('active'); }
+window.closeSettings = function() { playUIClick(); document.getElementById('settings-overlay').classList.remove('active'); }
+window.exitGame = function() { 
+    playUIClick(); 
+    try { window.close(); } catch(e) { alert('Пожалуйста, закройте вкладку вручную.'); } 
+}
+
+const oliverPhrases = ["Гав!", "Вуф!", "Я хороший мальчик!", "*виляет хвостом*", "Дай вкусняшку!", "Гав-гав!"];
+const lutikPhrases = ["Чирик!", "Пиастры!", "Курррлы!", "Лютик хороший!", "С днем рождения!", "*хлопает крыльями*"];
+
+function pokeChar(el, phrases) {
+    playUIClick();
+    const text = phrases[Math.floor(Math.random() * phrases.length)];
+    const bubble = document.createElement('div');
+    bubble.className = 'char-bubble';
+    bubble.innerText = text;
+    el.appendChild(bubble);
+    setTimeout(() => bubble.remove(), 1500);
+}
+window.pokeOliver = function(el) { pokeChar(el, oliverPhrases); }
+window.pokeLutik = function(el) { pokeChar(el, lutikPhrases); }
+
+// --- GAME & AI LOGIC ---
+function setReputation(v) {
+    gameState.reputation = Math.max(0, Math.min(100, v)); const pct = gameState.reputation;
+    document.getElementById('rep-bar').style.width = pct + '%'; document.getElementById('rep-val').innerText = Math.round(pct);
+    const bar = document.getElementById('rep-bar');
+    if (pct > 60) bar.style.background = '#22cc44'; else if (pct > 30) bar.style.background = '#f39c12'; else bar.style.background = '#d91e18';
+    
+    // Полиция триггерится только если репутация 0
+    if (pct <= 0 && gameState.policePhase === 'none' && gameState.gameStarted) triggerPolice();
+}
+
+async function askClaude(systemPrompt, userMessages) {
+    const messages = [{ role: "system", content: systemPrompt }, ...userMessages];
+    const resp = await fetch(GROQ_URL, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + GROQ_KEY }, body: JSON.stringify({ model: GROQ_MODEL, max_tokens: 300, temperature: 0.85, messages }) });
+    if (!resp.ok) { const err = await resp.text(); throw new Error("Groq " + resp.status + ": " + err); }
+    const data = await resp.json(); return data.choices?.[0]?.message?.content || "...";
+}
+
+function setTrust(pct) {
+    gameState.trustLevel = Math.min(100, Math.max(0, pct));
+    document.getElementById('trust-fill').style.width = gameState.trustLevel + '%';
+    document.getElementById('trust-pct').innerText = gameState.trustLevel + '%';
+}
+
+function addBubble(type, text, animate = false, npcObj = null, record = true) {
+    return new Promise(resolve => {
+        if (record && gameState.activeNPC) {
+            gameState.activeNPC.displayHistory = gameState.activeNPC.displayHistory || [];
+            gameState.activeNPC.displayHistory.push({ type, text });
+        }
+        const div = document.createElement('div'); div.className = `bubble ${type}`;
+        const msgs = document.getElementById('messages'); msgs.appendChild(div);
+        if (animate) {
+            let i = 0, currentText = ''; gameState.isTypingText = true;
+            const interval = setInterval(() => {
+                if (!gameState.isTalking || !document.getElementById('dialogue-overlay').classList.contains('active')) { clearInterval(interval); gameState.isTypingText = false; resolve(); return; }
+                currentText += text.charAt(i); div.textContent = currentText;
+                if (text.charAt(i) !== ' ' && i % 2 === 0) playTalkSound(npcObj);
+                msgs.scrollTop = msgs.scrollHeight; i++;
+                if (i >= text.length) { clearInterval(interval); gameState.isTypingText = false; resolve(); }
+            }, 35);
+        } else { div.textContent = text; msgs.scrollTop = msgs.scrollHeight; resolve(); }
+    });
+}
+
+function closeChat() {
+    document.getElementById('dialogue-overlay').classList.remove('active');
+    gameState.isTalking = false; gameState.activeNPC = null;
+    document.getElementById('game-canvas').requestPointerLock().catch(() => {});
+}
+
+window.selectClass = function(name) {
+    gameState.costume = name; gameState.gameStarted = true;
+    
+    // Дублирующая остановка аудио для надежности
+    menuMusic.pause();
+    if (mp3Video) mp3Video.pause();
+
+    document.getElementById('shop-overlay').style.display = 'none';
+    document.getElementById('costume-label').innerText = name.toUpperCase();
+    
+    // Включаем интерфейс игры только после старта
+    document.getElementById('hud').style.display = 'flex';
+    document.getElementById('crosshair').style.display = 'block';
+    
+    // Включаем VHS элементы
+    document.getElementById('vhs-overlay').style.display = 'block';
+    document.getElementById('vhs-glitch').style.display = 'block';
+    document.getElementById('vhs-noise').style.display = 'block';
+    document.getElementById('code-panel').classList.add('visible');
+
+    if(window.innerWidth > 600) document.getElementById('controls').style.display = 'block';
+
+    document.getElementById('game-canvas').requestPointerLock().catch(() => {});
+}
+
+async function openAnimalChat(npcObj) {
+    if (document.pointerLockElement) document.exitPointerLock();
+    gameState.activeNPC = npcObj; gameState.isTalking = true;
+    document.getElementById('dialogue-overlay').classList.add('active');
+    document.getElementById('npc-name').innerText = npcObj.name.toUpperCase();
+    
+    setTrust(npcObj.userData?.trust || 0);
+    
+    const msgs = document.getElementById('messages');
+    msgs.innerHTML = '';
+    
+    if (!npcObj.displayHistory || npcObj.displayHistory.length === 0) {
+        npcObj.displayHistory = [];
+        let greeting = npcObj.isDog ? "*Смотрит на тебя и виляет хвостом*" : "*Смотрит сверху вниз и чирикает*";
+        
+        if (npcObj.isBird) unlockAchievement('talk_bird');
+        if (npcObj.isDog && npcObj.userData.trust >= 50) greeting = "*Радостно прыгает вокруг тебя!* Гав! Гав!";
+        
+        await addBubble('npc', greeting, true, npcObj, true); 
+    } else {
+        npcObj.displayHistory.forEach(msg => {
+            const div = document.createElement('div');
+            div.className = `bubble ${msg.type}`;
+            div.textContent = msg.text;
+            msgs.appendChild(div);
+        });
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+    
+    document.getElementById('chat-input').focus();
+}
+
+async function sendDialogue() {
+    const input = document.getElementById('chat-input'); const text = input.value.trim();
+    if (!text || !gameState.activeNPC || gameState.activeNPC._aiThinking || gameState.isTypingText) return;
+    input.value = ''; await addBubble('player', text, true, null, true);
+    
+    if (gameState.activeNPC.isDog) { 
+        const barks = [
+            "Гав-гав! Привет!", "Вуф-вуф!", "Гав! Ксения лучшая!", "Ррр... шучу, гав!", 
+            "*Скулит и просит вкусняшку*", "Гав! Я защищаю этот район!", "*Бегает за своим хвостом*", 
+            "Вуф! Ты пахнешь... странно.", "*Тяжело дышит с высунутым языком*"
+        ]; 
+        await addBubble('npc', barks[Math.floor(Math.random() * barks.length)], true, gameState.activeNPC, true); 
+        return; 
+    }
+    if (gameState.activeNPC.isBird) { 
+        const chirps = [
+            "Чирик! Привет!", "Пиастррры!", "С днем рррождения!", "Лютик хороший!", 
+            "Курррлы!", "*Нахохлился и смотрит*", "Кто там? Кто там?!", "Дай семечку!", "Чирик-чирик-чирик!"
+        ]; 
+        await addBubble('npc', chirps[Math.floor(Math.random() * chirps.length)], true, gameState.activeNPC, true); 
+        return; 
+    }
+
+    if (text.toLowerCase() === SECRET_WORD.toLowerCase()) {
+        await addBubble('system', '> КОД ПРИНЯТ: ДОСТУП РАЗРЕШЕН', false, null, true);
+        setTimeout(() => { gameState.activeNPC.isInvited = true; gameState.activeNPC.npc.visible = true; closeChat(); }, 800); return;
+    }
+    
+    gameState.activeNPC._aiThinking = true;
+    const typingEl = document.createElement('div'); typingEl.className = 'bubble npc typing'; typingEl.id = 'typing-bubble'; typingEl.innerText = '▒▒▒▒';
+    document.getElementById('messages').appendChild(typingEl); document.getElementById('messages').scrollTop = 99999;
+
+    // ИСПРАВЛЕНИЕ: Переписан промпт, чтобы нейросеть больше не писала "JSON:"
+    const systemPrompt = `Ты — ${gameState.activeNPC.name}, житель дома. К твоей двери пришёл незнакомец в костюме "${gameState.costume}". ${gameState.reputation < 50 ? "У него плохая репутация!" : ""}
+Будь ПОДОЗРИТЕЛЬНЫМ. Отвечай КРАТКО (1-3 предложения), на русском языке.
+В КОНЦЕ каждого ответа ОБЯЗАТЕЛЬНО добавь на отдельной строке объект {"trust": N, "suspicious": B} (само слово JSON писать НЕ НУЖНО).
+Где N — число от 0 до 100 (доверие), B — true если подозрительно. Текущее доверие: ${gameState.trustLevel}. Повышай за убедительность.
+Когда доверие 100 — напиши {"trust": 100, "invited": true} и впусти гостя.`;
+
+    gameState.currentConversationHistory.push({ role: 'user', content: text });
+    try {
+        const raw = await askClaude(systemPrompt, gameState.currentConversationHistory.map(m => ({ role: m.role, content: m.content })));
+        const jsonMatch = raw.match(/\{[^{}]+\}/g); const lastJson = jsonMatch ? jsonMatch[jsonMatch.length - 1] : null;
+        
+        let cleanText = raw.replace(/\{[^{}]+\}\s*$/, '').trim();
+        // ИСПРАВЛЕНИЕ 2: Принудительно вырезаем слово JSON, если нейросеть всё равно его добавила
+        cleanText = cleanText.replace(/JSON:?\s*$/i, '').trim(); 
+        
+        let newTrust = gameState.trustLevel, invited = false, suspicious = false;
+        if (lastJson) { try { const p = JSON.parse(lastJson); if(typeof p.trust==='number') newTrust=p.trust; invited=p.invited; suspicious=p.suspicious; } catch(e){} }
+        
+        const prevTrust = gameState.trustLevel;
+        setTrust(newTrust); 
+        
+        // Репутация падает только если подозрительно И доверие не выросло
+        if (suspicious && newTrust <= prevTrust) {
+            setReputation(gameState.reputation - REPUTATION_PENALTY_PER_SUSPICION);
+        }
+
+        gameState.currentConversationHistory.push({ role: 'assistant', content: raw });
+        if (gameState.activeNPC) {
+            gameState.activeNPC.chatHistory = gameState.currentConversationHistory;
+            if (typeof gameState.activeNPC.trust !== 'undefined') gameState.activeNPC.trust = newTrust;
+        }
+
+        document.getElementById('typing-bubble')?.remove();
+        await addBubble('npc', cleanText || '...', true, gameState.activeNPC, true);
+        if (invited || newTrust >= 100) { setTrust(100); setTimeout(async () => { await addBubble('system', '> ДВЕРЬ ОТКРЫТА', false, null, true); setTimeout(() => { gameState.activeNPC.isInvited = true; gameState.activeNPC.npc.visible = true; closeChat(); }, 1000); }, 600); }
+    } catch (e) { document.getElementById('typing-bubble')?.remove(); await addBubble('npc', '...ошибка связи...', true, gameState.activeNPC, true); }
+    gameState.activeNPC._aiThinking = false;
+}
+
+// --- PUZZLES ---
+let activePuzzleHouse = null, currentPuzzlePhase = 1, jigsawOrder = [], jigsawSelected = null;
+
+window.interactPuzzle = function(h) {
+    activePuzzleHouse = h; gameState.puzzleOpen = true;
+    if (document.pointerLockElement) document.exitPointerLock();
+    document.getElementById('puzzle-overlay').classList.add('active');
+    currentPuzzlePhase = 1; renderPuzzleUI();
+}
+
+function renderPuzzleUI() {
+    const p = PUZZLES_CONFIG[activePuzzleHouse.puzzleIndex];
+    const pb = document.getElementById('puzzle-body');
+    document.getElementById('puzzle-status').innerText = ""; document.getElementById('puzzle-status').className = "puzzle-status";
+    if (currentPuzzlePhase === 2) {
+        pb.innerHTML = `<div class="puzzle-desc" style="color:var(--gold);">[ ЗАДАНИЕ ВЫПОЛНЕНО ]</div>
+                        <div class="puzzle-desc">Ищи подсказку в реальном мире.<br><br><b>${p.irlHint}</b></div>
+                        <div class="puzzle-input-row" style="margin-top:15px">
+                            <input type="text" id="p-final-digit" maxlength="1" class="puzzle-input" placeholder="Ц">
+                            <button class="puzzle-btn" onclick="submitFinalDigit()">ОК</button>
+                        </div>`; return;
+    }
+    if (p.type === 'morse') {
+        pb.innerHTML = `<div class="puzzle-desc">${p.desc}</div>
+                        <button class="morse-btn" onclick="playMorse(${p.digit})">[ ВОСПРОИЗВЕСТИ ]</button>
+                        <div class="puzzle-input-row" style="margin-top:15px">
+                            <input type="text" id="p-input" maxlength="1" class="puzzle-input" placeholder="?">
+                            <button class="puzzle-btn" onclick="submitMorse()">ОК</button>
+                        </div>`;
+    } else if (p.type === 'jigsaw') {
+        pb.innerHTML = `<div class="puzzle-desc">Собери картинку (кликай для замены)</div><div id="jigsaw-container"></div>`; initJigsaw(p);
+    } else {
+        pb.innerHTML = `<div class="puzzle-desc">${p.question}</div>
+                        <div class="puzzle-input-row" style="margin-top:15px">
+                            <input type="text" id="p-input" class="puzzle-input" placeholder="Ответ">
+                            <button class="puzzle-btn" onclick="submitTextAnswer()">ОК</button>
+                        </div>`;
+    }
+}
+
+function initJigsaw(p) {
+    const grid = p.grid || 3; const total = grid * grid; jigsawOrder = Array.from({length: total}, (_, i) => i);
+    for(let i = total - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [jigsawOrder[i], jigsawOrder[j]] = [jigsawOrder[j], jigsawOrder[i]]; }
+    jigsawSelected = null; renderJigsawGrid(p);
+}
+function renderJigsawGrid(p) {
+    const container = document.getElementById('jigsaw-container'); if(!container) return;
+    const grid = p.grid || 3;
+    container.style.display = 'grid'; container.style.gridTemplateColumns = `repeat(${grid}, 1fr)`;
+    container.style.width = '270px'; container.style.height = '270px'; container.style.margin = '0 auto'; container.style.gap = '4px';
+    container.style.border = '4px solid #fff'; container.style.background = '#000'; container.innerHTML = '';
+    jigsawOrder.forEach((originalIndex, currentIndex) => {
+        const div = document.createElement('div'); div.style.backgroundImage = `url('${p.imageUrl}')`; div.style.backgroundSize = `${grid * 100}% ${grid * 100}%`;
+        const col = originalIndex % grid; const row = Math.floor(originalIndex / grid);
+        div.style.backgroundPosition = `${col * (100 / (grid - 1))}% ${row * (100 / (grid - 1))}%`; div.style.cursor = 'pointer';
+        if (jigsawSelected === currentIndex) { div.style.outline = '4px solid var(--red)'; div.style.zIndex = 2; }
+        div.onclick = () => { if (jigsawSelected === null) { jigsawSelected = currentIndex; renderJigsawGrid(p); } else { [jigsawOrder[jigsawSelected], jigsawOrder[currentIndex]] = [jigsawOrder[currentIndex], jigsawOrder[jigsawSelected]]; jigsawSelected = null; renderJigsawGrid(p); checkJigsawSolved(); } };
+        container.appendChild(div);
+    });
+}
+function checkJigsawSolved() { if (jigsawOrder.every((val, index) => val === index)) setTimeout(() => { currentPuzzlePhase = 2; renderPuzzleUI(); }, 400); }
+
+window.submitTextAnswer = function() {
+    if (document.getElementById('p-input').value.trim().toLowerCase() === String(PUZZLES_CONFIG[activePuzzleHouse.puzzleIndex].answer).toLowerCase()) { currentPuzzlePhase = 2; renderPuzzleUI(); }
+    else { document.getElementById('puzzle-status').className = 'puzzle-status err'; document.getElementById('puzzle-status').innerText = 'ОШИБКА.'; }
+}
+window.submitMorse = function() {
+    if (document.getElementById('p-input').value.trim() === String(PUZZLES_CONFIG[activePuzzleHouse.puzzleIndex].digit)) puzzleSuccess(); 
+    else { document.getElementById('puzzle-status').className = 'puzzle-status err'; document.getElementById('puzzle-status').innerText = 'ОШИБКА.'; }
+}
+window.submitFinalDigit = function() {
+    if (document.getElementById('p-final-digit').value.trim() === String(PUZZLES_CONFIG[activePuzzleHouse.puzzleIndex].digit)) puzzleSuccess(); 
+    else { document.getElementById('puzzle-status').className = 'puzzle-status err'; document.getElementById('puzzle-status').innerText = 'НЕВЕРНО.'; }
+}
+function puzzleSuccess() {
+    document.getElementById('puzzle-status').className = 'puzzle-status ok'; document.getElementById('puzzle-status').innerText = 'ДАННЫЕ ПРИНЯТЫ.';
+    gameState.solvedPuzzles[activePuzzleHouse.puzzleIndex] = true;
+    document.getElementById(`cd-${activePuzzleHouse.puzzleIndex}`).innerText = PUZZLES_CONFIG[activePuzzleHouse.puzzleIndex].digit;
+    document.getElementById(`cd-${activePuzzleHouse.puzzleIndex}`).classList.add('filled');
+    activePuzzleHouse.noteMesh.material.color.setHex(0x55ff55); 
+    
+    // Achievements check
+    const solvedCount = gameState.solvedPuzzles.filter(Boolean).length;
+    if (solvedCount === 1) unlockAchievement('puzzle_1');
+    if (solvedCount === 2) unlockAchievement('puzzle_2');
+    if (solvedCount === 3) unlockAchievement('puzzle_3');
+    if (solvedCount === 4) unlockAchievement('puzzle_4');
+    if (solvedCount === 5) unlockAchievement('all_puzzles');
+
+    setTimeout(closePuzzle, 1000);
+}
+window.closePuzzle = function() { gameState.puzzleOpen = false; document.getElementById('puzzle-overlay').classList.remove('active'); document.getElementById('game-canvas').requestPointerLock().catch(() => {}); }
+
+// --- FINAL GIFT ---
+window.openFinal = function() { gameState.finalOpen = true; if (document.pointerLockElement) document.exitPointerLock(); document.getElementById('final-overlay').classList.add('active'); document.getElementById('final-status').innerText = ''; }
+window.closeFinal = function() { gameState.finalOpen = false; document.getElementById('final-overlay').classList.remove('active'); document.getElementById('game-canvas').requestPointerLock().catch(() => {}); }
+window.checkFinalCode = function() {
+    let guess = ""; for(let i=0; i<5; i++) guess += document.getElementById(`fd-${i}`).value;
+    const realCode = PUZZLES_CONFIG.map(p => p.digit).join('');
+    if (guess === realCode) { document.getElementById('final-overlay').classList.remove('active'); triggerBirthday(); } else { document.getElementById('final-status').innerText = 'ДОСТУП ЗАПРЕЩЕН.'; }
+}
+
+let confetti = [];
+function triggerBirthday() {
+    document.getElementById('birthday-screen').classList.add('active'); document.getElementById('gift-location').innerText = `Координаты: ${FINAL_GIFT_TEXT}`;
+    const canvas = document.getElementById('birthday-canvas'); canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    for(let i=0; i<200; i++) { confetti.push({ x: canvas.width/2, y: canvas.height/2, vx: (Math.random()-0.5)*25, vy: (Math.random()-0.5)*25 - 5, color: `hsl(${Math.random()*360}, 100%, 50%)`, size: Math.random()*12 + 6 }); }
+    drawConfetti();
+}
+function drawConfetti() {
+    const canvas = document.getElementById('birthday-canvas'); const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    confetti.forEach(c => { c.x += c.vx; c.y += c.vy; c.vy += 0.4; ctx.fillStyle = c.color; ctx.fillRect(c.x, c.y, c.size, c.size); }); requestAnimationFrame(drawConfetti);
+}
+
+window.interact = async function() {
+    const near = houses.find(h => !gameState.dead[h.id] && !h.isInvited && player.position.distanceTo(h.doorPos) < 38);
+    if (!near || gameState.isTalking) return;
+    
+    gameState.activeNPC = near; 
+    gameState.isTalking = true; 
+    
+    // Подгрузка истории если есть
+    gameState.currentConversationHistory = near.chatHistory || []; 
+    setTrust(near.trust || 0);
+    
+    if (document.pointerLockElement) document.exitPointerLock();
+    document.getElementById('dialogue-overlay').classList.add('active'); 
+    document.getElementById('npc-name').innerText = near.name.toUpperCase(); 
+    
+    const msgs = document.getElementById('messages');
+    msgs.innerHTML = '';
+    
+    if (!near.displayHistory || near.displayHistory.length === 0) {
+        near.displayHistory = [];
+        await addBubble('npc', `*стук* Кто там? Чего надо, ${gameState.costume.toLowerCase()}?`, true, near, true); 
+    } else {
+        near.displayHistory.forEach(msg => {
+            const div = document.createElement('div');
+            div.className = `bubble ${msg.type}`;
+            div.textContent = msg.text;
+            msgs.appendChild(div);
+        });
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+    
+    document.getElementById('chat-input').focus();
+}
+
+function spawnBlood(pos) {
+    const bloodMat = new THREE.MeshBasicMaterial({ color: 0xaa0000 });
+    for(let i=0; i<25; i++) {
+        let p = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), bloodMat);
+        p.position.copy(pos); p.position.y += 4; p.position.x += (Math.random()-0.5)*2; p.position.z += (Math.random()-0.5)*2;
+        p.userData = { vx: (Math.random()-0.5)*15, vy: Math.random()*15 + 5, vz: (Math.random()-0.5)*15, life: 1.5 };
+        scene.add(p); bloodParticles.push(p);
+    }
+}
+
+// --- 3D MP3 PLAYER (MENU) CREATION ---
+function createBtnTexture(text, bgColor, textColor, size = 30) {
+    const cvs = document.createElement('canvas');
+    cvs.width = 128; cvs.height = 64;
+    const ctx = cvs.getContext('2d');
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, 128, 64);
+    ctx.fillStyle = textColor;
+    ctx.font = `bold ${size}px 'Press Start 2P', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 64, 32);
+    ctx.strokeStyle = '#555555';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(2, 2, 124, 60);
+    return new THREE.CanvasTexture(cvs);
+}
+
+function createMp3Player() {
+    mp3PlayerGroup = new THREE.Group();
+
+    // Создаем видео элемент
+    mp3Video = document.createElement('video');
+    mp3Video.src = mp3Playlist[currentTrack];
+    mp3Video.loop = true;
+    mp3Video.crossOrigin = 'anonymous';
+    mp3Video.playsInline = true;
+
+    // Корпус MP3 плеера
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.6, metalness: 0.1 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(4, 6, 0.6), bodyMat);
+    mp3PlayerGroup.add(body);
+
+    // Экран (z координата сдвинута на 0.32, чтобы не было Z-fighting с рамкой на 0.31)
+    const videoTex = new THREE.VideoTexture(mp3Video);
+    videoTex.colorSpace = THREE.SRGBColorSpace; 
+    const screenMat = new THREE.MeshBasicMaterial({ map: videoTex });
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.025), screenMat); // 16:9 соотношение
+    screen.position.set(0, 1.2, 0.32);
+    mp3PlayerGroup.add(screen);
+
+    // Рамка экрана
+    const borderMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    const border = new THREE.Mesh(new THREE.BoxGeometry(3.8, 2.225, 0.1), borderMat);
+    border.position.set(0, 1.2, 0.26);
+    mp3PlayerGroup.add(border);
+
+    // Текстуры кнопок
+    texPlay = createBtnTexture('▶', '#22cc44', '#ffffff', 25);
+    texPause = createBtnTexture('||', '#cc2222', '#ffffff', 18);
+    let texPrev = createBtnTexture('<<', '#2266cc', '#ffffff', 28);
+    let texNext = createBtnTexture('>>', '#2266cc', '#ffffff', 28);
+
+    // Кнопки
+    const btnGeo = new THREE.BoxGeometry(1.0, 0.8, 0.2);
+
+    btnPrev = new THREE.Mesh(btnGeo, new THREE.MeshStandardMaterial({ map: texPrev }));
+    btnPrev.position.set(-1.2, -1.5, 0.31);
+    btnPrev.userData = { action: 'prev' };
+    mp3PlayerGroup.add(btnPrev);
+
+    btnPlay = new THREE.Mesh(btnGeo, new THREE.MeshStandardMaterial({ map: texPlay }));
+    btnPlay.position.set(0, -1.5, 0.31);
+    btnPlay.userData = { action: 'play' };
+    mp3PlayerGroup.add(btnPlay);
+
+    btnNext = new THREE.Mesh(btnGeo, new THREE.MeshStandardMaterial({ map: texNext }));
+    btnNext.position.set(1.2, -1.5, 0.31);
+    btnNext.userData = { action: 'next' };
+    mp3PlayerGroup.add(btnNext);
+
+    // Освещение специально для плеера
+    const mp3Light = new THREE.PointLight(0xffffff, 1.0, 20);
+    mp3Light.position.set(0, 0, 5);
+    mp3PlayerGroup.add(mp3Light);
+
+    // Расположение перед камерой, ОЧЕНЬ НИЗКО (как будто игрок держит в руках)
+    mp3PlayerGroup.position.set(-2.5, -0.5, -6);
+    mp3PlayerGroup.rotation.y = 0.4;
+    mp3PlayerGroup.rotation.x = -0.2;
+    
+    menuScene.add(mp3PlayerGroup);
+}
+
+// --- THREE.JS ---
+async function init() {
+    scene = new THREE.Scene(); 
+    scene.background = new THREE.Color(0x050508); // Устанавливаем фон для игровой сцены
+    scene.fog = new THREE.Fog(0x050508, 80, 500); 
+
+    // СЦЕНА МЕНЮ (чтобы плеер был на чистом фоне)
+    menuScene = new THREE.Scene();
+
+    clock = new THREE.Clock();
+
+    camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 1000);
+    player = new THREE.Group(); player.add(camera); camera.position.y = 5.5; player.position.set(0, 0.5, 0); scene.add(player);
+
+    // Добавляем нагрудный фонарик игроку
+    const playerLight = new THREE.SpotLight(0xffffee, 1.2, 80, Math.PI/4, 0.5, 1);
+    playerLight.position.set(0, 0, 0);
+    playerLight.target.position.set(0, 0, -1);
+    player.add(playerLight);
+    player.add(playerLight.target);
+
+    renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: false, alpha: true }); // Включаем альфа канал
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(0.35); // ПИКСЕЛЬНЫЙ РЕНДЕР (PS1 ЭФФЕКТ)
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.BasicShadowMap; // Простые жесткие тени
+    renderer.setClearColor(0x000000, 0); // Делаем канвас прозрачным по умолчанию
+
+    const heartCanvas = document.createElement('canvas'); heartCanvas.width = 64; heartCanvas.height = 64; const hctx = heartCanvas.getContext('2d');
+    hctx.fillStyle = '#ff3366'; hctx.font = '50px Arial'; hctx.fillText('❤', 10, 50);
+    heartMat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(heartCanvas), transparent: true });
+
+    buildWorld(); buildSkyAndMoon(); buildGrass(); setupColliders(); initVHSNoise(); createCorgi(); createParrot();
+    
+    // Создаем 3D плеер для главного меню (внутри menuScene)
+    createMp3Player();
+
+    document.getElementById('loading-screen').style.display = 'none'; 
+    
+    // Подготовка летящих цветочков для меню
+    const fContainer = document.getElementById('flower-container');
+    const flowers = ['🌸', '🌺', '🌷', '🌻', '🌼'];
+    for(let i=0; i<20; i++) {
+        let f = document.createElement('div');
+        f.className = 'bg-flower';
+        f.innerText = flowers[Math.floor(Math.random()*flowers.length)];
+        f.style.left = Math.random() * 100 + 'vw';
+        f.style.top = Math.random() * 100 + 'vh';
+        f.style.animationDelay = (Math.random() * 5) + 's';
+        fContainer.appendChild(f);
+    }
+    
+    // Запускаем слои меню (Фон и UI)
+    document.getElementById('main-menu-bg').style.display = 'block';
+    document.getElementById('main-menu').style.display = 'flex';
+    menuMusic.play().catch(e => console.log("Ждем первого клика для музыки меню"));
+    
+    carSpawnTimer = 8; requestAnimationFrame(animate);
+}
+
+function setLoad(p) { document.getElementById('loader-fill').style.width = p + '%'; }
+function setStatus(t) { document.getElementById('status-text').innerText = t; }
+
+// Упрощенные меши для ретро-стиля (меньше полигонов)
+function createParrot() {
+    parrot = new THREE.Group();
+    parrot.name = "Лютик";
+    parrot.isBird = true;
+    
+    const grey = new THREE.MeshStandardMaterial({color: 0xaaaaaa}), yellow = new THREE.MeshStandardMaterial({color: 0xffdd44}), orange = new THREE.MeshStandardMaterial({color: 0xff6600});
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.8), grey); parrot.add(body);
+    const phead = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), yellow); phead.position.set(0, 0.3, 0.3); parrot.add(phead);
+    const crest = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.1), yellow); crest.position.set(0, 0.6, 0.2); crest.rotation.x = -0.3; parrot.add(crest);
+    const cheek1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.1), orange); cheek1.position.set(0.18, 0.3, 0.3); parrot.add(cheek1);
+    const cheek2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.1), orange); cheek2.position.set(-0.18, 0.3, 0.3); parrot.add(cheek2);
+    const wing1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.6), grey); wing1.position.set(0.25, 0, 0); parrot.add(wing1); parrot.userData.wing1 = wing1;
+    const wing2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.6), grey); wing2.position.set(-0.25, 0, 0); parrot.add(wing2); parrot.userData.wing2 = wing2;
+    parrot.position.set(0, 5, 0); parrot.userData = { angle: 0, wing1, wing2, trust: 0 }; scene.add(parrot);
+}
+
+function feedLutik() {
+    if (gameState.cookies <= 0) return;
+    
+    gameState.cookies--;
+    document.getElementById('cookie-val').innerText = gameState.cookies;
+    
+    parrot.userData.trust = Math.min(100, (parrot.userData.trust || 0) + 25);
+    
+    playTalkSound(parrot); // Радостный чирик
+    
+    for(let i=0; i<5; i++) {
+        let s = new THREE.Sprite(heartMat); 
+        s.position.copy(parrot.position); 
+        s.position.y += 1.5; 
+        s.position.x += (Math.random()-0.5)*0.5; 
+        s.position.z += (Math.random()-0.5)*0.5;
+        s.userData = { vy: 0.02 + Math.random()*0.02, life: 1.0 }; 
+        scene.add(s); 
+        heartParticles.push(s);
+    }
+    
+    unlockAchievement('feed_bird');
+}
+
+function createCartoonNPC(isFemale, doorFaceX) {
+    const npcGroup = new THREE.Group();
+    const skinColors = [0xffddcc, 0xf4d06f, 0x8d5524], clothesColors = [0xcc3333, 0x3355cc, 0x33aa55], hairColors = [0x222222, 0x553311, 0xddaa22];
+    const skinMat = new THREE.MeshStandardMaterial({ color: skinColors[Math.floor(Math.random() * skinColors.length)] });
+    const clothesMat = new THREE.MeshStandardMaterial({ color: clothesColors[Math.floor(Math.random() * clothesColors.length)] });
+    const hairMat = new THREE.MeshStandardMaterial({ color: hairColors[Math.floor(Math.random() * hairColors.length)] });
+    
+    // Блочные персонажи a-la Minecraft / ретро
+    const head = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), skinMat); head.position.y = 8.5; npcGroup.add(head);
+    if (isFemale) { const hair = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 1.8), hairMat); hair.position.set(0, 8.8, -0.2); npcGroup.add(hair); } 
+    else { const hair = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.6, 1.7), hairMat); hair.position.y = 9.4; npcGroup.add(hair); }
+
+    const eyeW = new THREE.MeshStandardMaterial({color: 0xffffff}), eyeB = new THREE.MeshStandardMaterial({color: 0x000000});
+    [-0.3, 0.3].forEach(ez => {
+        const eyeGroup = new THREE.Group(); const sclera = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), eyeW); const pupil = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), eyeB);
+        sclera.rotation.y = Math.PI/2; pupil.rotation.y = Math.PI/2; pupil.position.x = 0.01; eyeGroup.add(sclera); eyeGroup.add(pupil); eyeGroup.position.set(0.81, 8.5, ez); npcGroup.add(eyeGroup);
+    });
+
+    let bodyMesh;
+    if (isFemale) { bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 4, 1.5), clothesMat); bodyMesh.position.y = 5.5; npcGroup.add(bodyMesh); } 
+    else { bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 4, 1.8), clothesMat); bodyMesh.position.y = 5.5; npcGroup.add(bodyMesh); }
+
+    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    [-0.4, 0.4].forEach(lz => { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.5, 0.5), isFemale ? skinMat : pantsMat); leg.position.set(0, 1.75, lz); npcGroup.add(leg); });
+    [-1.1, 1.1].forEach(az => { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.5, 0.4), skinMat); arm.position.set(0, 5.5, az); npcGroup.add(arm); });
+
+    npcGroup.rotation.y = doorFaceX === 1 ? 0 : Math.PI; npcGroup.userData = { body: bodyMesh }; return npcGroup;
+}
+
+function createCorgi() {
+    corgi = new THREE.Group();
+    corgi.name = "Оливер";
+    corgi.isDog = true;
+    
+    const tan = new THREE.MeshStandardMaterial({color: 0xc19a6b}), white = new THREE.MeshStandardMaterial({color: 0xffffff});
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 3), tan); body.position.y = 1; corgi.add(body);
+    const belly = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 2.5), white); belly.position.set(0, 0.5, 0); corgi.add(belly);
+    const head = new THREE.Group(); head.position.set(0, 1.6, 1.6); corgi.add(head);
+    const mainHead = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.1, 1.3), tan); head.add(mainHead);
+    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.8), white); snout.position.set(0, -0.2, 0.7); head.add(snout);
+    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshStandardMaterial({color:0x000000})); nose.position.set(0, -0.1, 1.1); head.add(nose);
+    const earG = new THREE.BoxGeometry(0.4, 0.7, 0.1);
+    const earL = new THREE.Mesh(earG, tan); earL.position.set(0.4, 0.8, 0); earL.rotation.z = -0.2; head.add(earL);
+    const earR = new THREE.Mesh(earG, tan); earR.position.set(-0.4, 0.8, 0); earR.rotation.z = 0.2; head.add(earR);
+    const legG = new THREE.BoxGeometry(0.3, 0.8, 0.3);
+    [[0.6, 0.4, 1], [-0.6, 0.4, 1], [0.6, 0.4, -1], [-0.6, 0.4, -1]].forEach(p => { const leg = new THREE.Mesh(legG, white); leg.position.set(p[0], p[1], p[2]); corgi.add(leg); });
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), tan); tail.position.set(0, 1.2, -1.6); corgi.add(tail);
+    corgi.position.set(-25, 0, -50); 
+    corgi.userData = { state: 'walk', timer: 0, targetYaw: 0, petTimer: 0, trust: 0 }; 
+    scene.add(corgi);
+}
+
+function petCorgi() {
+    if(corgi.userData.petTimer > 0) return;
+    
+    unlockAchievement('pet_dog'); // Achievement
+    
+    corgi.userData.state = 'pet'; corgi.userData.petTimer = 2; corgi.userData.timer = 2;
+    
+    // Увеличиваем доверие от поглаживания
+    corgi.userData.trust = Math.min(100, (corgi.userData.trust || 0) + 15);
+    
+    if (corgi.userData.trust >= 100) {
+        unlockAchievement('dog_trust'); // Achievement
+    }
+    
+    if (gameState.activeNPC === corgi && gameState.isTalking) {
+        setTrust(corgi.userData.trust);
+    }
+
+    playCorgiPet(); // Вызов звука радости корги
+    for(let i=0; i<4; i++) {
+        let s = new THREE.Sprite(heartMat); s.position.copy(corgi.position); s.position.y += 1.5; s.position.x += (Math.random()-0.5)*0.5; s.position.z += (Math.random()-0.5)*0.5;
+        s.userData = { vy: 0.02 + Math.random()*0.02, life: 1.0 }; scene.add(s); heartParticles.push(s);
+    }
+}
+
+// --- WORLD ---
+function buildWorld() {
+    setStatus('СОЗДАНИЕ МИРА...');
+    scene.add(new THREE.AmbientLight(0x2a2a50, 2.0)); // Сделал ярче
+    
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x111a11 });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), groundMat); ground.rotation.x = -Math.PI / 2; ground.position.y = 0; ground.receiveShadow = true; scene.add(ground);
+    
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x111116 });
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(20, 600), roadMat); road.rotation.x = -Math.PI / 2; road.position.y = 0.05; road.receiveShadow = true; scene.add(road);
+
+    const markMat = new THREE.MeshStandardMaterial({ color: 0xddcc88 });
+    for (let z = -280; z <= 280; z += 18) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 6), markMat); m.rotation.x = -Math.PI / 2; m.position.set(0, 0.1, z); scene.add(m); }
+
+    const swMat = new THREE.MeshStandardMaterial({ color: 0x22222a });
+    [-16, 16].forEach(sx => { const sw = new THREE.Mesh(new THREE.PlaneGeometry(10, 600), swMat); sw.rotation.x = -Math.PI / 2; sw.position.set(sx, 0.06, 0); sw.receiveShadow = true; scene.add(sw); });
+
+    const curbMat = new THREE.MeshStandardMaterial({ color: 0x444455 });
+    [-11, 11].forEach(cx => { const c = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 600), curbMat); c.position.set(cx, 0.2, 0); scene.add(c); });
+
+    // Вернул оригинальный плотный лес и модельки деревьев
+    for (let z = -270; z <= 270; z += 22) { 
+        [-28, 28].forEach(tx => { 
+            if (Math.random() > 0.85) return;
+            scene.add(makeTree(tx + (Math.random()-0.5)*4, z + (Math.random()-0.5)*6)); 
+        }); 
+    }
+    
+    for (let z = -260; z <= 260; z += 55) { [-21, 21].forEach(lx => scene.add(makeStreetlamp(lx, z))); }
+
+    let puzzleHousesIndexes = []; while(puzzleHousesIndexes.length < 5) { let r = Math.floor(Math.random() * 10); if(puzzleHousesIndexes.indexOf(r) === -1) puzzleHousesIndexes.push(r); }
+    const npcNames = ["Генрих","Элеонора","Виктор","Марта","Дмитрий","София","Алексей","Кристина","Павел","Анна"];
+    for (let i = 0; i < 10; i++) {
+        const z = -220 + i * 48; const side = (i % 2 === 0) ? -1 : 1; const x = side * 52;
+        let pIndex = puzzleHousesIndexes.indexOf(i); createHouse(x, z, i, npcNames[i], side, pIndex !== -1 ? pIndex : null); setLoad(30 + (i + 1) * 7);
+    }
+    setLoad(100);
+
+    const bushData = [[-18, -80], [18, -80], [-18, 0], [18, 0], [-18, 80], [18, 80], [-18, -160], [18, 160], [-18, 160], [18, -160]];
+    const bushMat = new THREE.MeshStandardMaterial({ color: 0x113311 });
+    bushData.forEach(([bx, bz]) => {
+        const g = new THREE.Group();
+        [[0, 1.2, 0, 1.8], [1, 1.0, -0.5, 1.4], [-0.8, 1.0, 0.4, 1.5]].forEach(([ox, oy, oz, r]) => { const s = new THREE.Mesh(new THREE.BoxGeometry(r*2, r*2, r*2), bushMat); s.position.set(ox, oy, oz); s.castShadow = true; g.add(s); });
+        g.position.set(bx, 0, bz); scene.add(g); bushPositions.push({ x: bx, z: bz, r: 3.5 });
+    });
+
+    buildWardrobeStand(-19, 30); buildGiftBox();
+}
+
+function buildGiftBox() {
+    const g = new THREE.Group(); const boxMat = new THREE.MeshStandardMaterial({ color: 0xdd2222 }); const ribbonMat = new THREE.MeshStandardMaterial({ color: 0xffd700 });
+    const box = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), boxMat); box.position.y = 1; g.add(box);
+    const r1 = new THREE.Mesh(new THREE.BoxGeometry(2.1, 2.1, 0.4), ribbonMat); r1.position.y = 1; g.add(r1);
+    const r2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.1, 2.1), ribbonMat); r2.position.y = 1; g.add(r2);
+    g.position.set(13, 0, -10); scene.add(g); window._giftPos = new THREE.Vector3(13, 0, -10); addBoxCollider(13, -10, 1.5, 1.5);
+}
+
+function buildWardrobeStand(x, z) {
+    const g = new THREE.Group(); const woodMat = new THREE.MeshStandardMaterial({ color: 0x6b3a1f }), metalMat = new THREE.MeshStandardMaterial({ color: 0x556677 });
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(8, 0.3, 3), woodMat); frame.position.y = 8; g.add(frame);
+    [[-3.5, 4, 0], [3.5, 4, 0]].forEach(([lx, ly, lz]) => { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 8, 0.4), woodMat); leg.position.set(lx, ly, lz); g.add(leg); });
+    const clothColors = [0xcc3333, 0x3355cc, 0x33aa55, 0xddaa22, 0x993399];
+    for (let i = -3; i <= 3; i += 1.5) {
+        const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.15), new THREE.MeshStandardMaterial({ color: clothColors[Math.floor(Math.random() * clothColors.length)] }));
+        cloth.position.set(i, 7, 0); g.add(cloth);
+    }
+    const signBoard = new THREE.Mesh(new THREE.BoxGeometry(7, 2, 0.3), woodMat); signBoard.position.set(0, 11, 0); g.add(signBoard);
+    
+    // Pixel art style board
+    const cvs = document.createElement('canvas'); cvs.width = 128; cvs.height = 32; const ctx = cvs.getContext('2d');
+    ctx.fillStyle = '#6b3a1f'; ctx.fillRect(0, 0, 128, 32); ctx.fillStyle = '#ffeeaa'; ctx.font = '12px "Press Start 2P"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('ГАРДЕРОБ', 64, 16);
+    const sm = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cvs) });
+    const sp = new THREE.Mesh(new THREE.PlaneGeometry(6.8, 1.9), sm); sp.position.set(0, 11, 0.18); g.add(sp);
+    g.position.set(x, 0, z); scene.add(g); addBoxCollider(x, z, 4.5, 2); window._wardrobePos = new THREE.Vector3(x, 0, z);
+}
+
+window.openWardrobe = function() { gameState.wardrobeOpen = true; document.getElementById('wardrobe-overlay').classList.add('active'); if (document.pointerLockElement) document.exitPointerLock(); }
+window.closeWardrobe = function() { gameState.wardrobeOpen = false; document.getElementById('wardrobe-overlay').classList.remove('active'); document.getElementById('game-canvas').requestPointerLock().catch(() => {}); }
+window.changeCostume = function(name) { gameState.costume = name; document.getElementById('costume-label').innerText = name.toUpperCase(); setReputation(Math.min(100, gameState.reputation + 30)); closeWardrobe(); }
+
+function makeTree(x, z) {
+    const g = new THREE.Group(); 
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3020, roughness: 1 }); 
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.2, 5, 7), trunkMat); trunk.position.y = 2.5; trunk.castShadow = true; g.add(trunk);
+    
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x1a3a18, roughness: 0.8 });
+    [[0, 5.5, 3.5, 8], [0, 8, 2.8, 6], [0, 10, 2, 5]].forEach(([, y, r, h]) => { 
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 8), leafMat); 
+        cone.position.y = y; cone.castShadow = true; g.add(cone); 
+    });
+    g.position.set(x, 0, z); return g;
+}
+
+function makeStreetlamp(x, z) {
+    const g = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: 0x334455 });
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.4, 10, 0.4), mat); pole.position.y = 5; pole.castShadow = true; g.add(pole);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(1, 0.5, 2), mat); head.position.set(0, 10.3, 0); g.add(head);
+    const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5), new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffcc44, emissiveIntensity: 1.5 })); bulb.position.set(0, 10, 0); g.add(bulb);
+    const light = new THREE.PointLight(0xffcc66, 1.5, 50); light.position.set(0, 10, 0); g.add(light);
+    g.position.set(x, 0, z); return g;
+}
+
+function createHouse(x, z, id, npcName, side, puzzleIndex) {
+    const g = new THREE.Group(); const W = 22, H = 18, D = 26, doorFaceX = -side; 
+    
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xaa9988, roughness: 0.7 });
+    const darkWallMat = new THREE.MeshStandardMaterial({ color: 0x887766, roughness: 0.8 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0x6a4a30, roughness: 0.5 });
+
+    // Восстановленные правильные (пустые внутри) стены дома
+    const wallBack = new THREE.Mesh(new THREE.BoxGeometry(1, H, W), darkWallMat); wallBack.position.set(side * D / 2, H / 2, 0); wallBack.castShadow = true; wallBack.receiveShadow = true; g.add(wallBack);
+    const wallSide1 = new THREE.Mesh(new THREE.BoxGeometry(D, H, 1), darkWallMat); wallSide1.position.set(0, H / 2, -W / 2); wallSide1.castShadow = true; wallSide1.receiveShadow = true; g.add(wallSide1);
+    const wallSide2 = new THREE.Mesh(new THREE.BoxGeometry(D, H, 1), darkWallMat); wallSide2.position.set(0, H / 2, W / 2); wallSide2.castShadow = true; wallSide2.receiveShadow = true; g.add(wallSide2);
+
+    const doorW = 7, doorH = 12, halfWallW = (W - doorW) / 2; const fxBase = -side * D / 2; 
+    const fwLeft = new THREE.Mesh(new THREE.BoxGeometry(1, H, halfWallW), wallMat); fwLeft.position.set(fxBase, H / 2, -(doorW / 2 + halfWallW / 2)); fwLeft.castShadow = true; fwLeft.receiveShadow = true; g.add(fwLeft);
+    const fwRight = new THREE.Mesh(new THREE.BoxGeometry(1, H, halfWallW), wallMat); fwRight.position.set(fxBase, H / 2, doorW / 2 + halfWallW / 2); fwRight.castShadow = true; fwRight.receiveShadow = true; g.add(fwRight);
+    const fwTop = new THREE.Mesh(new THREE.BoxGeometry(1, H - doorH, doorW), wallMat); fwTop.position.set(fxBase, doorH + (H - doorH) / 2, 0); fwTop.castShadow = true; g.add(fwTop);
+
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(D, 0.5, W), new THREE.MeshStandardMaterial({ color: 0x6b4926, roughness: 0.9 })); floor.position.set(0, 0.1, 0); floor.receiveShadow = true; g.add(floor);
+    const ceil = new THREE.Mesh(new THREE.BoxGeometry(D, 0.5, W), trimMat); ceil.position.set(0, H - 0.5, 0); g.add(ceil);
+
+    // --- НОВЫЙ ДЕКОР ---
+    // Ковер
+    const rugColors = [0x882233, 0x224488, 0x336633, 0xaa7722, 0x663377];
+    const rugMat = new THREE.MeshStandardMaterial({color: rugColors[id % rugColors.length]});
+    const rug = new THREE.Mesh(new THREE.PlaneGeometry(12, 10), rugMat);
+    rug.rotation.x = -Math.PI/2;
+    rug.position.set(0, 0.36, 0); // Чуть выше пола
+    g.add(rug);
+
+    // Большой шкаф
+    const shelfMat = new THREE.MeshStandardMaterial({color: 0x3d2314});
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(4, 10, 2), shelfMat);
+    shelf.position.set(side * 11, 5.25, 6);
+    shelf.rotation.y = Math.PI / 2;
+    g.add(shelf);
+
+    // Картина / Телевизор на стене
+    const paintMat = new THREE.MeshStandardMaterial({color: 0x111122}); // Темный экран
+    const paint = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 0.3), paintMat);
+    paint.position.set(0, 7, -W/2 + 0.6);
+    g.add(paint);
+
+    // Восстановленные двери
+    const doorPivot = new THREE.Group(); doorPivot.position.set(fxBase, 0, -doorW / 2); g.add(doorPivot);
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x553322 }); 
+    const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, doorH, doorW), doorMat); doorMesh.position.set(0, doorH / 2, doorW / 2); doorPivot.add(doorMesh);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshStandardMaterial({ color: 0xd4a030, metalness: 0.8, roughness: 0.2 })); knob.position.set(doorFaceX * 0.6, doorH / 2, doorW - 1.2); doorPivot.add(knob);
+    
+    // Roof
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x552222 });
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(W, 10, 4), roofMat); roof.rotation.y = Math.PI/4; roof.position.set(0, H + 5, 0); g.add(roof);
+
+    // Восстановленная мебель
+    const woodM = new THREE.MeshStandardMaterial({color: 0x5d4037}); const fabricM = new THREE.MeshStandardMaterial({color: 0xe0e0e0});
+    const bedG = new THREE.Group(); bedG.position.set(side*(D/2-4), 0.25, -W/2+5); g.add(bedG);
+    
+    const bedCoverColors = [0x550000, 0x000055, 0x005500, 0x555500, 0x333333];
+    const bedMat = new THREE.MeshStandardMaterial({color: bedCoverColors[id % bedCoverColors.length]});
+    
+    const bedFrame = new THREE.Mesh(new THREE.BoxGeometry(6, 1.2, 8), woodM); bedFrame.position.y = 0.6; bedG.add(bedFrame);
+    const mattress = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.8, 7.5), bedMat); mattress.position.y = 1.3; bedG.add(mattress);
+    
+    const tableG = new THREE.Group(); tableG.position.set(-side*(D/2-4), 0.25, W/2-6); g.add(tableG);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(6, 0.3, 4), woodM); top.position.y = 3; tableG.add(top);
+    const legG = new THREE.CylinderGeometry(0.15, 0.1, 3, 6); [[2.5, 1.5, 1.5], [-2.5, 1.5, 1.5], [2.5, 1.5, -1.5], [-2.5, 1.5, -1.5]].forEach(p => { const leg = new THREE.Mesh(legG, woodM); leg.position.set(p[0],p[1],p[2]); tableG.add(leg); });
+
+    // --- ПЕЧЕНЬЕ НА СТОЛЕ ---
+    const cookieTexCvs = document.createElement('canvas'); cookieTexCvs.width = 64; cookieTexCvs.height = 64; 
+    const cCtx = cookieTexCvs.getContext('2d');
+    cCtx.fillStyle = '#b5651d'; cCtx.fillRect(0,0,64,64); // Основа печеньки
+    cCtx.fillStyle = '#4a2511'; // Шоколадная крошка
+    for(let i=0; i<15; i++) cCtx.fillRect(Math.random()*60, Math.random()*60, 4, 4);
+    
+    const cookieMat = new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(cookieTexCvs), roughness: 0.9 });
+    const cookieMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.1, 10), cookieMat);
+    cookieMesh.position.set(0, 3.4, 0); // Чуть выше стола
+    tableG.add(cookieMesh);
+    
+    const cookieWorldPos = new THREE.Vector3(x - side*(D/2-4), 3.4, z + W/2-6);
+
+    const chairG = new THREE.Group(); chairG.position.set(-side*(D/2-4), 0.25, W/2-4.5); chairG.rotation.y = Math.PI; g.add(chairG);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.3, 2.5), woodM); seat.position.y = 1.8; chairG.add(seat);
+    const backR = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 0.3), woodM); backR.position.set(0, 3, -1.1); chairG.add(backR);
+    // Ножки стула
+    [[-1, 0.9, 1], [1, 0.9, 1], [-1, 0.9, -1], [1, 0.9, -1]].forEach(([lx, ly, lz]) => { 
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.8, 0.3), woodM); 
+        leg.position.set(lx, ly, lz); chairG.add(leg); 
+    });
+
+    // Граффити
+    if (id === 6) {
+        const imgTex = new THREE.TextureLoader().load('image/love.png');
+        const imgPlane = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 4.5), new THREE.MeshBasicMaterial({map: imgTex, transparent: true, depthWrite: false}));
+        imgPlane.position.set(fxBase + doorFaceX * 0.55, 4.8, side * 7.25); 
+        imgPlane.rotation.y = doorFaceX === 1 ? Math.PI / 2 : -Math.PI / 2; 
+        g.add(imgPlane);
+    } else if (id < GRAFFITI_TEXTS.length) {
+        const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = 128; const ctx = cvs.getContext('2d');
+        ctx.fillStyle = '#ff44aa'; ctx.font = '20px "VT323"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const lines = GRAFFITI_TEXTS[id].split('\n'); for(let i=0; i<lines.length; i++) ctx.fillText(lines[i], 128, 64 + (i - (lines.length-1)/2) * 20);
+        const graf = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(cvs), transparent: true}));
+        graf.position.set(fxBase + doorFaceX * 0.55, 4.8, side * 7.25); graf.rotation.y = doorFaceX === 1 ? Math.PI / 2 : -Math.PI / 2; g.add(graf);
+    }
+
+    const indoorLight = new THREE.PointLight(0xffaa44, 1.0, 40); indoorLight.position.set(-side * D / 4, 14, 0); g.add(indoorLight);
+
+    let noteMesh = null, noteWorldPos = null;
+    if (puzzleIndex !== null) {
+        noteMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 1.5), new THREE.MeshStandardMaterial({ color: 0xffddaa, emissive: 0x332211 })); 
+        noteMesh.position.set(-side * D / 4 + 1.5, 3.48, W/2-6); g.add(noteMesh); noteWorldPos = new THREE.Vector3(x + (-side * D / 4) + 1.5, 3.48, z + W/2-6);
+    }
+
+    const isFemale = (id % 2 !== 0); const npcGroup = createCartoonNPC(isFemale, doorFaceX);
+    npcGroup.position.set(doorFaceX * 4, 0, doorFaceX * -4); npcGroup.visible = false; g.add(npcGroup);
+
+    g.position.set(x, 0, z); scene.add(g);
+    const doorPos = new THREE.Vector3(x + doorFaceX * (D / 2 + 4), 0, z);
+    const doorCol = { cx: x + fxBase, cz: z, hw: 0.5, hd: 3.5 };
+    
+    houses.push({ 
+        id, name: npcName, npc: npcGroup, doorPivot, doorAngle: 0, doorPos, indoorLight, 
+        isInvited: false, _aiThinking: false, puzzleIndex, noteMesh, noteWorldPos, doorCol, 
+        doorKilled: false, isDying: false, deathTimer: 0,
+        hasCookie: true, cookieMesh: cookieMesh, cookieWorldPos: cookieWorldPos
+    });
+}
+
+// --- COLLISIONS ---
+const colBoxes = [], colCircles = [];
+function addBoxCollider(cx, cz, hw, hd) { colBoxes.push({ cx, cz, hw, hd }); }
+function addCircleCollider(cx, cz, r) { colCircles.push({ cx, cz, r }); }
+
+function resolveCollisions(px, pz, pr) {
+    let x = px, z = pz;
+    for (const b of colBoxes) {
+        const ox = Math.abs(x - b.cx) - (b.hw + pr), oz = Math.abs(z - b.cz) - (b.hd + pr);
+        if (ox < 0 && oz < 0) { if (ox > oz) x += (x > b.cx ? -ox : ox); else z += (z > b.cz ? -oz : oz); }
+    }
+    for (const h of houses) {
+        if (!h.isInvited && !h.doorKilled) {
+            const ox = Math.abs(x - h.doorCol.cx) - (h.doorCol.hw + pr), oz = Math.abs(z - h.doorCol.cz) - (h.doorCol.hd + pr);
+            if (ox < 0 && oz < 0) { if (ox > oz) x += (x > h.doorCol.cx ? -ox : ox); else z += (z > h.doorCol.cz ? -oz : oz); }
+        }
+    }
+    for (const ci of colCircles) {
+        const dx = x - ci.cx, dz = z - ci.cz; const dist = Math.sqrt(dx * dx + dz * dz); const pen = ci.r + pr - dist;
+        if (pen > 0 && dist > 0.001) { x += (dx / dist) * pen; z += (dz / dist) * pen; }
+    }
+    return { x, z };
+}
+
+function setupColliders() {
+    const D = 26, W = 22;
+    for (let i = 0; i < 10; i++) {
+        const z = -220 + i * 48, side = (i % 2 === 0) ? -1 : 1, x = side * 52;
+        // Восстановленные правильные коллизии (пустой внутри дом)
+        addBoxCollider(x + side*(D/2 - 0.5), z, 0.5, W/2); // Задняя стена
+        addBoxCollider(x, z - W/2 + 0.5, D/2, 0.5); // Боковая стена
+        addBoxCollider(x, z + W/2 - 0.5, D/2, 0.5); // Боковая стена
+        addBoxCollider(x - side*(D/2 - 0.5), z - 7.25, 0.5, 3.75); // Передняя левая часть
+        addBoxCollider(x - side*(D/2 - 0.5), z + 7.25, 0.5, 3.75); // Передняя правая часть 
+        
+        // Коллизия мебели
+        addBoxCollider(x + side*9, z - 6, 3, 4); // Кровать
+        addBoxCollider(x - side*9, z + 5, 3, 2.5); // Стол
+        addBoxCollider(x + side*11, z + 5, 1.5, 3); // Шкаф
+    }
+    for (let zi = -270; zi <= 270; zi += 22) { [-28, 28].forEach(tx => { addCircleCollider(tx, zi, 1.4); }); }
+    for (let lz = -260; lz <= 260; lz += 55) { [-21, 21].forEach(lx => { addCircleCollider(lx, lz, 0.5); }); }
+}
+
+// --- CARS ---
+const cars = [];
+function makeCar(startZ, dir) {
+    const g = new THREE.Group(); 
+    const bodyMat = new THREE.MeshStandardMaterial({ color: [0xcc2222, 0x2255cc, 0x22aa44, 0x888888][Math.floor(Math.random()*4)], roughness: 0.4, metalness: 0.3 });
+    
+    // Восстановленная детализированная машинка
+    const body = new THREE.Mesh(new THREE.BoxGeometry(5, 2.5, 10), bodyMat); body.position.y = 1.8; body.castShadow = true; g.add(body);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2, 5.5), bodyMat); cabin.position.set(0, 3.5, -0.5); cabin.castShadow = true; g.add(cabin);
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x88bbdd, transparent: true, opacity: 0.5 }); const windshield = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 0.2), glassMat); windshield.position.set(0, 3.5, 2.4); g.add(windshield);
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 }); [[-2.6, 1, 3.5], [2.6, 1, 3.5], [-2.6, 1, -3.5], [2.6, 1, -3.5]].forEach(([wx, wy, wz]) => { const wheel = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.8, 10), wheelMat); wheel.rotation.z = Math.PI / 2; wheel.position.set(wx, wy, wz); g.add(wheel); });
+    
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffffaa, emissiveIntensity: 2 }); [-1.5, 1.5].forEach(hx => { const hl = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.2), headMat); hl.position.set(hx, 1.8, 5); g.add(hl); });
+    const tailMat = new THREE.MeshStandardMaterial({ color: 0xff2200, emissive: 0xff2200, emissiveIntensity: 1.5 }); [-1.5, 1.5].forEach(tx => { const tl = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.2), tailMat); tl.position.set(tx, 1.8, -5); g.add(tl); });
+
+    // Восстановленный свет фар
+    const headLight = new THREE.SpotLight(0xffffcc, 3, 50, 0.4); headLight.position.set(0, 2, 5); headLight.target.position.set(0, 0, 25); g.add(headLight); g.add(headLight.target);
+    
+    const lane = (Math.random() < 0.5) ? -4 : 4; g.position.set(lane, 0, startZ); g.rotation.y = dir > 0 ? 0 : Math.PI; scene.add(g);
+    return { mesh: g, dir, speed: 30 + Math.random() * 20, lane, active: true };
+}
+function spawnCar() { const dir = Math.random() < 0.5 ? 1 : -1; cars.push(makeCar(dir > 0 ? -310 : 310, dir)); }
+
+function buildSkyAndMoon() {
+    const skyGeo = new THREE.SphereGeometry(400, 8, 8); const skyMat = new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide, fog: false }); const skyMesh = new THREE.Mesh(skyGeo, skyMat); scene.add(skyMesh); window._skyMesh = skyMesh;
+    const starGeo = new THREE.BufferGeometry(); const starVerts = [];
+    for (let i = 0; i < 500; i++) { const r = 380, theta = Math.random() * Math.PI * 2, phi = Math.acos(2 * Math.random() - 1); starVerts.push(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi)); }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3)); const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 4, fog: false })); scene.add(stars); window._stars = stars;
+    
+    // Вернул луну
+    const moonMat = new THREE.MeshBasicMaterial({ color: 0xfffde0 }); const moon = new THREE.Mesh(new THREE.SphereGeometry(18, 20, 20), moonMat); moon.position.set(80, 120, -300); scene.add(moon);
+    const haloMat = new THREE.MeshBasicMaterial({ color: 0xaaaacc, transparent: true, opacity: 0.15 }); const halo = new THREE.Mesh(new THREE.SphereGeometry(26, 20, 20), haloMat); halo.position.set(80, 120, -300); scene.add(halo);
+    const moonGlow = new THREE.DirectionalLight(0x8888cc, 0.6); moonGlow.position.set(80, 120, -300); scene.add(moonGlow);
+}
+
+function buildGrass() {
+    const grassMat = new THREE.MeshStandardMaterial({ color: 0x112211 });
+    for (let i = 0; i < 200; i++) { const gx = (Math.random() - 0.5) * 160, gz = (Math.random() - 0.5) * 560; if (Math.abs(gx) < 14) continue; const blade = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1, 0.2), grassMat); blade.position.set(gx, 0.5, gz); scene.add(blade); }
+}
+
+function makePoliceCar(startX, dir) {
+    const g = new THREE.Group(); 
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4, metalness: 0.3 }); // Черный кузов
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.3 }); // Белые двери и крыша
+    
+    // Кузов
+    const body = new THREE.Mesh(new THREE.BoxGeometry(5, 1.5, 10), bodyMat); 
+    body.position.y = 1.3; body.castShadow = true; g.add(body);
+    
+    // Белая средняя часть (классическая полиция)
+    const middle = new THREE.Mesh(new THREE.BoxGeometry(5.1, 1.4, 4), whiteMat);
+    middle.position.set(0, 1.3, 0); g.add(middle);
+
+    // Кабина
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.8, 5.5), whiteMat); 
+    cabin.position.set(0, 3.0, -0.5); cabin.castShadow = true; g.add(cabin);
+
+    // Лобовое стекло
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.1 }); 
+    const windshield = new THREE.Mesh(new THREE.BoxGeometry(4, 1.4, 0.2), glassMat); 
+    windshield.position.set(0, 3.0, 2.3); windshield.rotation.x = -0.2; g.add(windshield);
+    
+    // Колеса
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 }); 
+    [[-2.6, 0.8, 3.5], [2.6, 0.8, 3.5], [-2.6, 0.8, -3.5], [2.6, 0.8, -3.5]].forEach(([wx, wy, wz]) => { 
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.8, 10), wheelMat); 
+        wheel.rotation.z = Math.PI / 2; wheel.position.set(wx, wy, wz); g.add(wheel); 
+    });
+    
+    // Мигалка
+    const barMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const lightBar = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.4, 0.8), barMat);
+    lightBar.position.set(0, 4.0, -0.5); g.add(lightBar);
+
+    // Свет мигалок
+    const lightR = new THREE.PointLight(0xff0000, 3, 40); lightR.position.set(-1, 4.2, -0.5); g.add(lightR); 
+    const lightB = new THREE.PointLight(0x0000ff, 3, 40); lightB.position.set(1, 4.2, -0.5); g.add(lightB); 
+    g._lightR = lightR; g._lightB = lightB;
+    
+    // Фары
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffffaa, emissiveIntensity: 2 }); 
+    [-1.5, 1.5].forEach(hx => { const hl = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.2), headMat); hl.position.set(hx, 1.4, 5.0); g.add(hl); });
+    const headLight = new THREE.SpotLight(0xffffcc, 3, 50, 0.4); headLight.position.set(0, 1.5, 5); headLight.target.position.set(0, 0, 25); g.add(headLight); g.add(headLight.target);
+
+    g.position.set(startX, 0, dir > 0 ? -320 : 320); 
+    g.rotation.y = dir > 0 ? 0 : Math.PI; 
+    scene.add(g); 
+    return g;
+}
+
+window.triggerPolice = function() {
+    if (gameState.policePhase !== 'none') return;
+    gameState.policePhase = 'alert'; gameState.policeTimer = 10; gameState.policeActive = true;
+    gameState.policeTargetZ = player.position.z; // Запоминаем где совершено преступление
+    document.getElementById('police-alert').classList.add('active'); document.getElementById('police-alert').innerText = 'ПОЛИЦИЯ ЕДЕТ! СПРЯЧЬСЯ В КУСТЫ — 10 СЕК'; document.getElementById('bush-hint').classList.add('active');
+}
+
+function updatePolice(dt) {
+    if (!gameState.policeActive) return; const alert = document.getElementById('police-alert');
+    if (gameState.policePhase === 'alert') {
+        gameState.policeTimer -= dt; alert.innerText = 'ПОЛИЦИЯ ЕДЕТ! СПРЯЧЬСЯ В КУСТЫ — ' + Math.ceil(gameState.policeTimer) + ' СЕК';
+        if (gameState.policeTimer <= 0) { gameState.policePhase = 'arriving'; gameState.policeCar = makePoliceCar(0, 1); gameState.policeTimer = 0; document.getElementById('bush-hint').classList.remove('active'); }
+    }
+    if (gameState.policePhase === 'arriving' && gameState.policeCar) {
+        const pc = gameState.policeCar; gameState.policeTimer += dt;
+        pc._lightR.intensity = Math.sin(gameState.policeTimer * 8) > 0 ? 4 : 0; pc._lightB.intensity = Math.sin(gameState.policeTimer * 8) > 0 ? 0 : 4;
+        
+        // Машина едет к дому, где был вызван триггер
+        if (Math.abs(pc.position.z - gameState.policeTargetZ) > 5) { 
+            pc.position.z += (gameState.policeTargetZ - pc.position.z > 0 ? 1 : -1) * 22 * dt; 
+        } else { 
+            gameState.policePhase = 'searching'; 
+            gameState.policeTimer = 5; 
+            alert.innerText = 'ПОЛИЦИЯ ИЩЕТ ВАМПИРА...'; 
+        }
+    }
+    if (gameState.policePhase === 'searching') {
+        gameState.policeTimer -= dt; const pc = gameState.policeCar;
+        if (pc) { pc._lightR.intensity = Math.sin(Date.now() * 0.01) > 0 ? 4 : 0; pc._lightB.intensity = Math.sin(Date.now() * 0.01) > 0 ? 0 : 4; }
+        if (!isPlayerInBush()) { 
+            if (gameState.policeTimer <= 3) { killPlayer('Полиция подстрелила вас!'); cleanupPolice(); return; } 
+        }
+        if (gameState.policeTimer <= 0) { 
+            gameState.policePhase = 'leaving'; 
+            alert.innerText = 'Полиция уезжает...'; 
+            setReputation(100); // Восстанавливаем репутацию
+            unlockAchievement('hide_police'); // Achievement 
+        }
+    }
+    if (gameState.policePhase === 'leaving' && gameState.policeCar) { gameState.policeCar.position.z += 18 * dt; if (gameState.policeCar.position.z > 340) cleanupPolice(); }
+}
+
+function cleanupPolice() { if (gameState.policeCar) { scene.remove(gameState.policeCar); gameState.policeCar = null; } gameState.policeActive = false; gameState.policePhase = 'none'; document.getElementById('police-alert').classList.remove('active'); document.getElementById('bush-hint').classList.remove('active'); }
+function isPlayerInBush() { for (const bp of bushPositions) { const dx = player.position.x - bp.x, dz = player.position.z - bp.z; if (dx * dx + dz * dz < bp.r * bp.r) return true; } return false; }
+
+function killPlayer(reason) { 
+    gameState.isDead = true; 
+    
+    // Achievements check
+    if (reason.includes('машина')) unlockAchievement('die_car');
+    if (reason.includes('Полиция')) unlockAchievement('die_police');
+    
+    document.getElementById('death-screen').classList.add('active'); 
+    document.getElementById('death-reason').innerText = reason; 
+    if (document.pointerLockElement) document.exitPointerLock(); 
+}
+
+window.restartGame = function() {
+    gameState.isDead = false; gameState.victims = 0; gameState.dead = {}; cleanupPolice(); setReputation(100); document.getElementById('score-val').innerText = '0'; 
+    gameState.cookies = 0; document.getElementById('cookie-val').innerText = '0';
+    document.getElementById('death-screen').classList.remove('active'); player.position.set(0, 0.5, 0); yaw = 0; pitch = 0; camera.rotation.x = 0; player.rotation.y = 0; document.getElementById('game-canvas').requestPointerLock().catch(() => {});
+}
+
+function initVHSNoise() {
+    const c = document.getElementById('vhs-noise'); c.width = 128; c.height = 128; c.style.width = '100vw'; c.style.height = '100vh';
+    function drawNoise() { const ctx = c.getContext('2d'); const id = ctx.createImageData(128, 128); for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = v; id.data[i+1] = v; id.data[i+2] = v; id.data[i+3] = 20; } ctx.putImageData(id, 0, 0); requestAnimationFrame(drawNoise); } drawNoise();
+}
+
+let carSpawnTimer = 0;
+function animate() {
+    requestAnimationFrame(animate);
+
+    // Анимация 3D MP3 плеера в меню
+    if (!gameState.gameStarted && mp3PlayerGroup) {
+        mp3PlayerGroup.position.y = -0.5 + Math.sin(Date.now() * 0.002) * 0.2;
+        mp3PlayerGroup.rotation.y = 0.4 + Math.sin(Date.now() * 0.001) * 0.1;
+        mp3PlayerGroup.rotation.x = -0.2 + Math.sin(Date.now() * 0.0015) * 0.05;
+        renderer.render(menuScene, camera); // Рендерим ТОЛЬКО сцену плеера, пока мы в меню
+        return; 
+    }
+
+    if (!gameState.gameStarted || gameState.isDead || gameState.isPaused) return;
+    const dt = Math.min(clock.getDelta(), 0.05);
+
+    if (!gameState.isTalking && !gameState.puzzleOpen && !gameState.finalOpen && !gameState.wardrobeOpen) {
+        const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 24 : 12; const dir = new THREE.Vector3();
+        if (keys['KeyW']) dir.z -= 1; if (keys['KeyS']) dir.z += 1; if (keys['KeyA']) dir.x -= 1; if (keys['KeyD']) dir.x += 1;
+        
+        // FOV Effect for Sprinting (Juice)
+        const targetFov = (keys['ShiftLeft'] || keys['ShiftRight']) && (keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD']) ? 85 : 70;
+        camera.fov += (targetFov - camera.fov) * dt * 5;
+        camera.updateProjectionMatrix();
+
+        if (dir.length() > 0) {
+            dir.normalize().applyQuaternion(player.quaternion);
+            const resolved = resolveCollisions(player.position.x + dir.x * speed * dt, player.position.z + dir.z * speed * dt, 1.8);
+            player.position.x = Math.min(75, Math.max(-75, resolved.x)); player.position.z = Math.min(275, Math.max(-275, resolved.z));
+            stepDistCounter += speed * dt; camera.position.y = 5.5 + Math.sin(stepDistCounter * 0.5) * 0.2; // Сильнее качание
+            if (Math.abs(Math.sin(stepDistCounter * 0.5)) > 0.95) { if (!player.userData.stepPlayed) { playStepSound(speed > 15); player.userData.stepPlayed = true; } } else { player.userData.stepPlayed = false; }
+        } else { camera.position.y += (5.5 - camera.position.y) * dt * 5; }
+    }
+
+    for(let i=heartParticles.length-1; i>=0; i--){ let p = heartParticles[i]; p.position.y += p.userData.vy; p.userData.life -= dt * 0.5; p.material.opacity = p.userData.life; if(p.userData.life <= 0) { scene.remove(p); heartParticles.splice(i, 1); } }
+    for(let i=bloodParticles.length-1; i>=0; i--){ let p = bloodParticles[i]; p.position.x += p.userData.vx * dt; p.position.y += p.userData.vy * dt; p.position.z += p.userData.vz * dt; p.userData.vy -= 20 * dt; p.userData.life -= dt; p.material.opacity = p.userData.life; if(p.position.y < 0.1) p.position.y = 0.1; if(p.userData.life <= 0) { scene.remove(p); bloodParticles.splice(i, 1); } }
+
+    if (window._skyMesh) { window._skyMesh.position.copy(player.position); window._stars.position.copy(player.position); }
+
+    let closestCarDist = 9999;
+    houses.forEach(h => {
+        const target = (h.isInvited || h.doorKilled) ? Math.PI / 2 : 0;
+        if (Math.abs(target - h.doorAngle) > 0.01) { h.doorAngle += (target - h.doorAngle) * dt * 5; h.doorPivot.rotation.y = h.doorAngle; }
+        if (h.isDying) { h.deathTimer -= dt; h.npc.rotation.x -= dt * 3; h.npc.position.y -= dt * 2; if (h.deathTimer <= 0) { h.isDying = false; h.npc.visible = false; h.doorKilled = true; gameState.dead[h.id] = true; } } 
+        else if (h.isInvited && !gameState.dead[h.id] && h.npc.userData.body) { h.npc.userData.body.scale.y = 1 + Math.sin(Date.now() * 0.003) * 0.05; }
+
+        // Анимации предметов (Juice)
+        if (h.noteMesh) {
+            h.noteMesh.rotation.y += dt;
+            h.noteMesh.position.y = 3.48 + Math.sin(Date.now() * 0.003 + h.id) * 0.1;
+        }
+        if (h.hasCookie && h.cookieMesh) {
+            h.cookieMesh.rotation.y += dt * 1.5;
+            h.cookieMesh.position.y = 3.4 + Math.sin(Date.now() * 0.004 + h.id) * 0.05;
+        }
+    });
+
+    carSpawnTimer -= dt; if (carSpawnTimer <= 0) { spawnCar(); carSpawnTimer = 6 + Math.random() * 12; }
+    for (let i = cars.length - 1; i >= 0; i--) {
+        const car = cars[i]; car.mesh.position.z += car.dir * car.speed * dt; const cp = car.mesh.position;
+        if (Math.abs(player.position.x - cp.x) < 4 && Math.abs(player.position.z - cp.z) < 7) killPlayer('Сбила машина!');
+        let distToPlayer = player.position.distanceTo(cp); if (distToPlayer < closestCarDist) closestCarDist = distToPlayer;
+        if (Math.abs(car.mesh.position.z) > 350) { scene.remove(car.mesh); cars.splice(i, 1); }
+    }
+
+    updateEngineSound(closestCarDist); updateSirenSound(); updatePolice(dt);
+
+    // Логика поворота попугая
+    if (parrot) { 
+        const isInteractingParrot = (gameState.activeNPC && gameState.activeNPC.isBird);
+        if (isInteractingParrot) {
+            parrot.rotation.y = Math.atan2(player.position.x - parrot.position.x, player.position.z - parrot.position.z);
+            parrot.position.y = 4 + Math.sin(Date.now() * 0.002); 
+            parrot.userData.wing1.rotation.z = Math.sin(Date.now() * 0.02) * 0.5; 
+            parrot.userData.wing2.rotation.z = -Math.sin(Date.now() * 0.02) * 0.5;
+        } else {
+            parrot.userData.angle += dt * 0.5; 
+            const nextX = Math.cos(parrot.userData.angle) * 15; 
+            const nextZ = Math.sin(parrot.userData.angle) * 30; 
+            const futureX = Math.cos(parrot.userData.angle + 0.1) * 15;
+            const futureZ = Math.sin(parrot.userData.angle + 0.1) * 30;
+            parrot.position.x = nextX; 
+            parrot.position.z = nextZ; 
+            parrot.rotation.y = Math.atan2(futureX - nextX, futureZ - nextZ); 
+            parrot.position.y = 4 + Math.sin(Date.now() * 0.002); 
+            parrot.userData.wing1.rotation.z = Math.sin(Date.now() * 0.02) * 0.5; 
+            parrot.userData.wing2.rotation.z = -Math.sin(Date.now() * 0.02) * 0.5; 
+        }
+    }
+
+    // Логика поворота корги
+    if (corgi) {
+        const isInteractingCorgi = (gameState.activeNPC && gameState.activeNPC.isDog) || corgi.userData.state === 'pet';
+        if (isInteractingCorgi) {
+            corgi.rotation.y = Math.atan2(player.position.x - corgi.position.x, player.position.z - corgi.position.z);
+            if(corgi.userData.state === 'pet') {
+                corgi.userData.petTimer -= dt; 
+                corgi.position.y = Math.abs(Math.sin(Date.now()*0.02))*0.5; 
+                corgi.rotation.z = Math.sin(Date.now()*0.05)*0.1;
+                if(corgi.userData.petTimer <= 0) { 
+                    corgi.position.y = 0; corgi.rotation.z = 0; 
+                    corgi.userData.state = 'idle'; corgi.userData.timer = 1; 
+                }
+            } else {
+                corgi.rotation.z = 0; // Сброс наклона при обычном разговоре
+            }
+        } else {
+            corgi.userData.timer -= dt;
+            if (corgi.userData.state === 'walk') {
+                corgi.translateZ(6 * dt); 
+                if (Math.abs(corgi.position.x) < 15 || Math.abs(corgi.position.x) > 70 || Math.abs(corgi.position.z) > 280) { 
+                    corgi.position.x = Math.max(-70, Math.min(-15, corgi.position.x)); corgi.userData.timer = 0; 
+                }
+                corgi.children[0].position.y = 1 + Math.sin(Date.now()*0.01)*0.1;
+                if (Math.sin(Date.now()*0.02) > 0.9 && Math.random() < 0.2) playCorgiStep(); // Звук лапок при ходьбе
+
+                if (corgi.userData.timer <= 0) { 
+                    if (Math.random() < 0.3) { corgi.userData.state = 'idle'; corgi.userData.timer = 2 + Math.random()*3; } 
+                    else { corgi.userData.targetYaw = Math.random() * Math.PI * 2; corgi.userData.state = 'rotate'; corgi.userData.timer = 1; } 
+                }
+            } else if (corgi.userData.state === 'rotate') {
+                corgi.rotation.y += (corgi.userData.targetYaw - corgi.rotation.y) * 5 * dt; 
+                if (corgi.userData.timer <= 0) { corgi.userData.state = 'walk'; corgi.userData.timer = 4 + Math.random()*5; }
+            } else if (corgi.userData.state === 'idle') {
+                corgi.children[0].position.y = 1; 
+                if (corgi.userData.timer <= 0) { corgi.userData.state = 'walk'; corgi.userData.timer = 4 + Math.random()*5; }
+            }
+        }
+    }
+
+    let nearDoor = null, nearVictim = false, nearWardrobe = false, nearNote = null, nearCookie = null, nearGift = false, nearCorgi = false, nearParrot = false;
+    houses.forEach(h => {
+        const d = player.position.distanceTo(h.doorPos);
+        if (!gameState.dead[h.id] && !h.isInvited && d < 14) nearDoor = h;
+        if (!gameState.dead[h.id] && h.isInvited && d < 18 && !h.isDying) { nearVictim = true; gameState.activeNPC = h; }
+        
+        // Исправление: взаимодействовать с запиской и печеньем можно только после того, как вошел в дом (или убил) 
+        // и дистанция строго в пределах комнаты.
+        if (gameState.dead[h.id]) {
+            if (h.puzzleIndex !== null && !gameState.solvedPuzzles[h.puzzleIndex] && player.position.distanceTo(h.noteWorldPos) < 6) nearNote = h;
+            if (h.hasCookie && player.position.distanceTo(h.cookieWorldPos) < 6) nearCookie = h;
+        } else if (h.isInvited) {
+            if (h.hasCookie && player.position.distanceTo(h.cookieWorldPos) < 6) nearCookie = h;
+        }
+    });
+    if (window._wardrobePos && player.position.distanceTo(window._wardrobePos) < 12) nearWardrobe = true;
+    if (window._giftPos && player.position.distanceTo(window._giftPos) < 12) nearGift = true;
+    if (corgi && player.position.distanceTo(corgi.position) < 12) nearCorgi = true;
+    if (parrot && Math.hypot(player.position.x - parrot.position.x, player.position.z - parrot.position.z) < 12) nearParrot = true;
+
+    window._nearAction = null;
+    if (nearGift) { document.getElementById('hint').style.display = 'block'; document.getElementById('hint').innerHTML = '<kbd>E</kbd> ОТКРЫТЬ ПОДАРОК'; window._nearAction = 'gift'; } 
+    else if (nearNote) { document.getElementById('hint').style.display = 'block'; document.getElementById('hint').innerHTML = '<kbd>E</kbd> ЧИТАТЬ ЗАПИСКУ'; window._nearAction = { type: 'note', target: nearNote }; } 
+    else if (nearCookie) { document.getElementById('hint').style.display = 'block'; document.getElementById('hint').innerHTML = '<kbd>E</kbd> ВЗЯТЬ ПЕЧЕНЬЕ'; window._nearAction = { type: 'cookie', target: nearCookie }; }
+    else if (nearCorgi) { document.getElementById('hint').style.display = 'block'; document.getElementById('hint').innerHTML = '<kbd>E</kbd> ГЛАДИТЬ <kbd>Q</kbd> ГОВОРИТЬ'; window._nearAction = 'corgi'; }
+    else if (nearParrot) { 
+        let pText = '<kbd>Q</kbd> ГОВОРИТЬ';
+        if (gameState.cookies > 0) pText += ' <kbd>E</kbd> ПОКОРМИТЬ';
+        document.getElementById('hint').style.display = 'block'; 
+        document.getElementById('hint').innerHTML = pText; 
+        window._nearAction = 'parrot'; 
+    }
+    else if (nearWardrobe) { document.getElementById('hint').style.display = 'block'; document.getElementById('hint').innerHTML = '<kbd>F</kbd> ГАРДЕРОБ'; } 
+    else if (nearDoor) { document.getElementById('hint').style.display = 'block'; document.getElementById('hint').innerHTML = '<kbd>E</kbd> СТУЧАТЬ'; window._nearAction = 'door'; } 
+    else { document.getElementById('hint').style.display = 'none'; }
+    
+    if (gameState.isTalking || gameState.puzzleOpen || gameState.finalOpen || gameState.wardrobeOpen) document.getElementById('hint').style.display = 'none';
+    document.getElementById('kill-prompt').style.display = nearVictim && !gameState.isTalking ? 'block' : 'none';
+    if (gameState.policeActive && gameState.policePhase === 'alert') { document.getElementById('bush-hint').innerText = isPlayerInBush() ? 'ЖДИ В КУСТАХ' : 'СПРЯЧЬСЯ В ЗЕЛЕНЫЕ КУСТЫ!'; }
+
+    renderer.render(scene, camera);
+}
+
+document.addEventListener('mousemove', e => {
+    if (document.pointerLockElement && !gameState.isTalking && !gameState.puzzleOpen && !gameState.finalOpen && gameState.gameStarted && !gameState.isPaused) {
+        yaw -= e.movementX * 0.003; pitch -= e.movementY * 0.003; pitch = Math.max(-1.3, Math.min(1.3, pitch)); camera.rotation.x = pitch; player.rotation.y = yaw;
+    }
+});
+
+document.addEventListener('mousedown', e => {
+    if (!audioCtx) initAudio();
+
+    // Игнорируем клики по кнопкам/персонажам HTML меню, чтобы не ломать рэйкастинг плеера
+    if (e.target.closest('.menu-btn') || e.target.closest('.menu-char') || e.target.closest('.settings-box')) return; 
+
+    // --- РЭЙКАСТИНГ ДЛЯ MP3 ПЛЕЕРА ---
+    if (!gameState.gameStarted && mp3PlayerGroup && mp3PlayerGroup.visible) {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        
+        const intersects = raycaster.intersectObjects([btnPrev, btnPlay, btnNext]);
+        if (intersects.length > 0) {
+            const action = intersects[0].object.userData.action;
+            playUIClick();
+            if (action === 'play') {
+                if (mp3Video.paused) {
+                    mp3Video.play();
+                    if (!menuMusic.paused) menuMusic.pause();
+                    btnPlay.material.map = texPause;
+                } else {
+                    mp3Video.pause();
+                    btnPlay.material.map = texPlay;
+                    if (menuMusic.paused) menuMusic.play();
+                }
+            } else if (action === 'next') {
+                currentTrack = (currentTrack + 1) % mp3Playlist.length;
+                mp3Video.src = mp3Playlist[currentTrack];
+                mp3Video.play();
+                if (!menuMusic.paused) menuMusic.pause();
+                btnPlay.material.map = texPause;
+            } else if (action === 'prev') {
+                currentTrack = (currentTrack - 1 + mp3Playlist.length) % mp3Playlist.length;
+                mp3Video.src = mp3Playlist[currentTrack];
+                mp3Video.play();
+                if (!menuMusic.paused) menuMusic.pause();
+                btnPlay.material.map = texPause;
+            }
+            return; // Прерываем дальнейшее выполнение, если клик был по плееру
+        }
+    }
+
+    if (!gameState.gameStarted || gameState.isTalking || gameState.puzzleOpen || gameState.finalOpen || gameState.isDead || gameState.isPaused) return;
+    if (document.getElementById('kill-prompt').style.display === 'block' && gameState.activeNPC && !gameState.dead[gameState.activeNPC.id] && gameState.activeNPC.isInvited) {
+        const h = gameState.activeNPC; h.isDying = true; h.deathTimer = 1.0; playBiteSound();
+        let globPos = new THREE.Vector3(); h.npc.getWorldPosition(globPos); spawnBlood(globPos);
+        gameState.victims++; document.getElementById('score-val').innerText = gameState.victims;
+        
+        if (gameState.victims === 1) unlockAchievement('first_blood'); // Achievement
+        
+        h.isInvited = false; h.indoorLight.intensity = 0.15; gameState.activeNPC = null;
+        const flash = document.getElementById('kill-flash'); flash.classList.add('active'); setTimeout(() => flash.classList.remove('active'), 150);
+        camera.position.x += (Math.random()-0.5)*2; camera.position.y += (Math.random()-0.5)*2;
+    } else { if(!gameState.wardrobeOpen) document.getElementById('game-canvas').requestPointerLock().catch(() => {}); }
+});
+
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'KeyQ' && !gameState.isTalking && !gameState.puzzleOpen && !gameState.finalOpen && gameState.gameStarted && !gameState.isPaused) {
+        if (window._nearAction === 'corgi') openAnimalChat(corgi);
+        if (window._nearAction === 'parrot') openAnimalChat(parrot);
+    }
+    if (e.code === 'KeyE' && !gameState.isTalking && !gameState.puzzleOpen && !gameState.finalOpen && gameState.gameStarted && !gameState.isPaused) {
+        if (window._nearAction === 'door') interact();
+        if (window._nearAction && window._nearAction.type === 'note') interactPuzzle(window._nearAction.target);
+        if (window._nearAction && window._nearAction.type === 'cookie') {
+            window._nearAction.target.hasCookie = false;
+            window._nearAction.target.cookieMesh.visible = false;
+            gameState.cookies++;
+            document.getElementById('cookie-val').innerText = gameState.cookies;
+            playUIClick();
+        }
+        if (window._nearAction === 'gift') openFinal();
+        if (window._nearAction === 'corgi') petCorgi();
+        if (window._nearAction === 'parrot') feedLutik();
+    }
+    if (e.code === 'KeyF' && !gameState.isTalking && !gameState.puzzleOpen && !gameState.finalOpen && !gameState.wardrobeOpen && gameState.gameStarted && !gameState.isPaused) {
+        if (window._wardrobePos && player.position.distanceTo(window._wardrobePos) < 12) openWardrobe();
+    }
+    if (e.code === 'Escape') {
+        if (gameState.isTalking) closeChat(); 
+        else if (gameState.wardrobeOpen) closeWardrobe();
+        else if (gameState.puzzleOpen) closePuzzle(); 
+        else if (gameState.finalOpen) closeFinal();
+        else if (gameState.gameStarted) togglePause();
+    }
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+document.getElementById('close-chat').addEventListener('click', closeChat);
+document.getElementById('chat-send').addEventListener('click', sendDialogue);
+document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendDialogue(); });
+window.addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+window.onload = init;
+</script>
+</body>
+</html>
