@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scritchy Scratchy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #272a35; 
+            color: white; 
+            font-family: 'Pixelify Sans', monospace; 
+            user-select: none; 
+            touch-action: none; 
+            letter-spacing: 0.05em;
+        }
+
+        /* --- СТРОГИЙ ПИКСЕЛЬНЫЙ СТИЛЬ --- */
+        .shadow-2xl, .shadow-xl, .shadow-lg, .shadow-md, .shadow-sm {
+            box-shadow: 4px 4px 0px #000000 !important;
+        }
+        .shadow-inner {
+            box-shadow: inset 4px 4px 0px rgba(0,0,0,0.6) !important;
+        }
+        .drop-shadow-md, .drop-shadow-lg {
+            filter: drop-shadow(4px 4px 0px #000000) !important;
+        }
+        
+        * { border-radius: 6px !important; }
+        .rounded-full { border-radius: 50% !important; } 
+
+        canvas { image-rendering: pixelated; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1a1c23; border-left: 2px solid #000; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4a5568; border: 2px solid #000; }
+        
+        @keyframes float-up {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-60px) scale(1.2); opacity: 0; }
+        }
+        .animate-float-up { animation: float-up 1.5s ease-out forwards; }
+        
+        @keyframes spin-slow { 100% { transform: rotate(360deg); } }
+        @keyframes spin-fast { 100% { transform: rotate(360deg); } }
+        
+        @keyframes jackpot-flash {
+            0%, 100% { filter: brightness(1); transform: scale(1); }
+            50% { filter: brightness(1.5); transform: scale(1.1); }
+        }
+        .animate-jackpot { animation: jackpot-flash 0.5s ease-in-out infinite; }
+
+        /* АНИМАЦИЯ ЛАПКИ КОТА */
+        @keyframes cat-scratch {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(-40deg) translateY(-10px); }
+            100% { transform: rotate(0deg); }
+        }
+        .animate-cat-scratch { animation: cat-scratch 0.25s infinite; }
+    </style>
+</head>
+<body class="flex h-screen w-full relative tracking-wider">
+
+    <!-- ЛЕВАЯ ПАНЕЛЬ -->
+    <div class="w-64 bg-[#232631] border-r-4 border-[#000] flex flex-col p-2 z-10 shadow-2xl flex-shrink-0">
+        <div class="bg-[#a87a41] p-3 rounded-md border-4 border-[#000] mb-3 flex items-center justify-between text-[#fff] font-bold text-xl shadow-md">
+            <div class="flex items-center gap-2">
+                <i data-lucide="coins" class="text-yellow-400 drop-shadow-md"></i>
+                <span id="ui-money" class="drop-shadow-md">0</span>₽
+            </div>
+        </div>
+
+        <!-- ПРОГРЕССИЯ -->
+        <div class="bg-[#141b20] p-2 rounded-md mb-2 border-4 border-[#000] shadow-md">
+            <div class="flex justify-between text-xs text-gray-300 mb-1 font-bold">
+                <span id="ui-progress-text">ПРОГРЕСС: 0</span>
+                <span id="ui-progress-max">5</span>
+            </div>
+            <div class="w-full bg-black h-3 rounded-sm overflow-hidden shadow-inner border-2 border-[#333]">
+                <div id="ui-progress-bar" class="bg-[#facc15] h-full transition-all" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <div class="flex gap-1 mb-2">
+            <button id="tab-tickets" class="flex-1 py-1 rounded-sm text-sm font-bold border-4 bg-[#364958] border-[#000] text-white uppercase shadow-md active:translate-y-1 active:shadow-sm">Билеты</button>
+            <button id="tab-gadgets" class="flex-1 py-1 rounded-sm text-sm font-bold border-4 bg-[#2a2e3b] border-[#000] text-gray-400 uppercase shadow-md active:translate-y-1 active:shadow-sm">Модули</button>
+        </div>
+
+        <div id="shop-container" class="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1"></div>
+
+        <button id="btn-reset" class="mt-4 p-2 w-full bg-[#cc2929] hover:bg-[#ff3333] border-4 border-[#000] rounded-md flex items-center justify-center gap-2 text-xs font-bold uppercase transition-colors shadow-md active:translate-y-1 active:shadow-sm">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i> ВАЙП
+        </button>
+    </div>
+
+    <!-- ИГРОВОЙ СТОЛ -->
+    <div id="table-area" class="flex-1 relative flex items-center justify-center bg-[#272a35] p-6 pb-16 z-0">
+        <div id="table-bounds" class="w-full h-full max-w-4xl bg-[#8c6742] rounded-t-xl relative shadow-2xl border-x-[12px] border-b-[16px] border-t-[4px] border-[#000]">
+            <div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(0,0,0,0.8) 15px, rgba(0,0,0,0.8) 30px)"></div>
+            
+            <div class="absolute -bottom-[40px] left-10 w-12 h-10 bg-[#5e4328] border-4 border-[#000] shadow-md"></div>
+            <div class="absolute -bottom-[40px] right-12 w-12 h-10 bg-[#5e4328] border-4 border-[#000] shadow-md"></div>
+
+            <div id="ui-phone" class="absolute top-6 right-6 z-20 cursor-pointer pointer-events-auto">
+                <div id="ui-phone-box" class="w-20 h-16 bg-[#cc2929] border-4 border-[#000] flex items-center justify-center shadow-md transition-transform active:translate-y-1 active:shadow-sm">
+                    <i data-lucide="phone" class="text-white w-6 h-6 drop-shadow-md"></i>
+                    <div id="ui-phone-ring" class="hidden absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 border-2 border-black rounded-full animate-ping opacity-100"></div>
+                </div>
+            </div>
+
+            <div id="ui-phone-dialog" class="hidden absolute top-24 right-6 bg-[#3a2c20] p-4 border-4 border-[#000] shadow-2xl z-30 max-w-[250px] text-sm text-yellow-400 font-bold">
+                <p id="ui-phone-msg" class="leading-relaxed drop-shadow-md"></p>
+                <div class="text-right mt-2 text-white animate-pulse text-xs font-black uppercase drop-shadow-md">ДАЛЕЕ...</div>
+            </div>
+
+            <!-- Гаджеты -->
+            <div id="gadgets-container" class="absolute inset-0 pointer-events-none z-10"></div>
+            
+            <!-- Предметы на столе -->
+            <div id="items-container" class="absolute inset-0 z-20 pointer-events-none"></div>
+            <!-- Всплывающие тексты -->
+            <div id="floating-texts" class="absolute inset-0 z-50 pointer-events-none"></div>
+        </div>
+
+        <div id="trash-can" class="hidden absolute bottom-6 -right-6 md:right-4 z-20 pointer-events-auto transition-transform hover:-translate-y-2">
+            <div class="w-20 h-28 bg-[#8c9fb3] border-4 border-[#000] shadow-2xl flex items-center justify-center border-t-4 border-[#b0c4de]">
+                <i data-lucide="trash-2" class="text-[#000] w-10 h-10 drop-shadow-md"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- УЛУЧШЕНИЯ -->
+    <div class="w-64 bg-[#212c33] border-l-4 border-[#000] flex flex-col p-4 z-10 shadow-2xl flex-shrink-0">
+        <h2 class="bg-[#365963] p-2 border-4 border-[#000] mb-4 text-center text-lg font-black text-[#fff] uppercase shadow-md drop-shadow-md">АПГРЕЙДЫ</h2>
+        <div id="upgrades-container" class="flex-1 space-y-3 overflow-y-auto custom-scrollbar pr-1"></div>
+    </div>
+
+    <!-- МОДАЛКА СКРЕТЧА -->
+    <div id="scratch-modal" class="hidden absolute inset-0 z-50 bg-black/80 items-center justify-center backdrop-blur-sm p-8">
+        <button id="btn-close-modal" class="absolute top-6 right-6 bg-red-600 border-4 border-black p-2 shadow-md hover:bg-red-500 active:translate-y-1 text-white"><i data-lucide="x" class="w-8 h-8 drop-shadow-md"></i></button>
+        <div class="flex gap-8 max-w-6xl w-full justify-center items-stretch">
+            
+            <div class="relative flex-shrink-0 flex flex-col items-center">
+                <!-- Обертка с box-sizing: content-box чтобы внутренние координаты точно совпадали с 450x400 -->
+                <div class="relative select-none shadow-[12px_12px_0_rgba(0,0,0,1)] flex items-center justify-center border-8 border-[#000] bg-[#222]" style="width: 450px; height: 400px; box-sizing: content-box;" id="scratch-content-wrapper">
+                    <div id="scratch-bg" class="w-full h-full absolute inset-0 pointer-events-none"></div>
+                    <div id="scratch-result-overlay" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-full flex justify-center"></div>
+                    <canvas id="scratch-canvas" width="450" height="400" class="absolute top-0 left-0 touch-none transition-opacity duration-500"></canvas>
+                </div>
+
+                <div class="mt-10 bg-[#362b22] border-4 border-[#000] px-8 py-3 flex items-center justify-center gap-4 shadow-md min-w-[250px]">
+                    <span class="text-yellow-500 font-bold uppercase tracking-widest text-sm drop-shadow-md">БАНК:</span>
+                    <span id="scratch-current-payout" class="text-4xl font-black text-white drop-shadow-md">0₽</span>
+                </div>
+            </div>
+
+            <!-- ИНФО ПАНЕЛЬ -->
+            <div id="scratch-info-panel" class="bg-[#4a3d31] w-[300px] border-4 border-[#000] shadow-2xl text-[#fff] flex flex-col overflow-hidden flex-shrink-0">
+                <!-- JS injected -->
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JACKPOT БАННЕР -->
+    <div id="ui-jackpot" class="hidden absolute inset-0 z-[100] bg-black/80 items-center justify-center pointer-events-none">
+        <h1 class="text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-600 drop-shadow-[6px_6px_0_#000] animate-jackpot text-center uppercase tracking-widest leading-tight" style="-webkit-text-stroke: 4px black;">ДЖЕКПОТ!</h1>
+    </div>
+
+<script>
+// --- КОНСТАНТЫ ЭКОНОМИКИ ---
+const SYMBOLS = {
+  DIAMOND: { icon: '💎', value: 250 }, 
+  MONEY_BAG: { icon: '💰', value: 75 }, 
+  CASH: { icon: '💵', value: 25 },
+  CHERRY: { icon: '🍒', value: 10 }, 
+  LEMON: { icon: '🍋', value: 0 }, 
+  BELL: { icon: '🔔', value: 0 },
+  WORM: { icon: '🐛', value: -20 }, 
+  APPLE_G: { icon: '🍏', value: 15 }, 
+  APPLE_R: { icon: '🍎', value: 40 }, 
+  APPLE_Y: { icon: '🏆', value: 250 },
+  BONUS_X2: { icon: '✖️2', value: 'x2' }, 
+  BONUS_PLUS: { icon: '➕100', value: 100 }, 
+  BONUS_NONE: { icon: '❌', value: 0 },
+  CAT: { icon: '🐱', value: -100 }, 
+  FISH: { icon: '🐟', value: 30 }, 
+  YARN: { icon: '🧶', value: 10 }, 
+  PAW: { icon: '🐾', value: 60 }
+};
+
+const SHOP_ITEMS = {
+  plate: { id: 'plate', name: 'РАБОТА', desc: 'ЧЕСТНЫЙ ТРУД, НО БЕЗ ПЕНСИИ', cost: 0, color: 'bg-[#a0aec0]' },
+  ticket_2win: { id: 'ticket_2win', name: '2 WIN', desc: 'НАЙДИ 2 И КУПИ ШАУРМУ', cost: 10, color: 'bg-[#5e8c79]' },
+  ticket_mini: { id: 'ticket_mini', name: 'MINI SCRATCH', desc: 'МИКРО-ДОЗЫ АЗАРТА', cost: 25, color: 'bg-[#4287f5]' },
+  ticket_apple: { id: 'ticket_apple', name: 'APPLE TREE', desc: 'ЧЕРВИ БЕСПЛАТНО', cost: 50, color: 'bg-[#2a7a2a]' },
+  ticket_quick: { id: 'ticket_quick', name: 'QUICK CASH', desc: 'БЫСТРЫЕ ДЕНЬГИ (ИЛИ ДОЛГИ)', cost: 100, color: 'bg-[#b88c35]' },
+  ticket_cat: { id: 'ticket_cat', name: 'LUCKY CAT', desc: 'ШРЕДИНГЕР ОТДЫХАЕТ', cost: 150, color: 'bg-[#91465e]' }
+};
+
+const GADGETS = {
+  trash: { id: 'trash', name: 'ЧЕРНАЯ ДЫРА', cost: 2, icon: 'trash-2' },
+  fan: { id: 'fan', name: 'ВЕТРОДУЙ 3000', cost: 25, icon: 'fan' },
+  robot: { id: 'robot', name: 'РАБ-БЕЗ-ЗАРПЛАТЫ', cost: 50, icon: 'bot' },
+  cat: { id: 'cat', name: 'ПУШИСТЫЙ РЭКЕТИР', cost: 300, icon: 'user' }
+};
+
+const PROGRESSION_STEPS = [
+  { count: 2, unlock: 'ticket_2win', msg: 'АЛО! С ДНЕМ РОЖДЕНИЯ! 23 ГОДИКА — ЭТО СЕРЬЕЗНО. ХВАТИТ МЫТЬ ТАРЕЛКИ, ДЕРЖИ БИЛЕТ 2 WIN. И НЕ ПРОИГРАЙ КВАРТИРУ!' },
+  { count: 10, unlock: 'ticket_mini', msg: 'МАМКА ЗВОНИЛА, СПРАШИВАЛА ГДЕ ТЫ. Я СКАЗАЛ ТЫ ВОРКАЕШЬ. ДЕРЖИ MINI SCRATCH, БИЗНЕСМЕН.' },
+  { count: 25, unlock: 'ticket_apple', msg: 'СЛЫШАЛ, ТЫ ТЕПЕРЬ МАГНАТ? ОТКРЫЛ ТЕБЕ APPLE TREE. ТОЛЬКО НЕ ЕШЬ ЧЕРВЕЙ, МЫ ЖЕ НЕ В ОБЩАГЕ.' },
+  { count: 45, unlock: 'ticket_quick', msg: 'НАЛОГОВАЯ ИЩЕТ ТВОИ ДОХОДЫ ОТ ТАРЕЛОК. ПРЯЧЬ ДЕНЬГИ В QUICK CASH!' },
+  { count: 70, unlock: 'ticket_cat', msg: 'СЛУШАЙ, Я ТУТ КОТА НАШЕЛ... ГОВОРЯТ ОН ПРИНОСИТ УДАЧУ, НО ЖРЕТ ДЕНЬГИ. ДОБАВИЛ В КАТАЛОГ!' }
+];
+
+const INITIAL_UPGRADES = {
+  luck: { level: 0, max: 5, cost: 300, name: 'АУРА ПОБЕДИТЕЛЯ', icon: 'clover', color: 'text-green-400' },
+  scratch_size: { level: 0, max: 5, cost: 100, name: 'РАЗМЕР ИМЕЕТ ЗНАЧЕНИЕ', icon: 'maximize', color: 'text-purple-400' },
+  scratch_strength: { level: 0, max: 5, cost: 150, name: 'МОЩЬ БОГА', icon: 'hammer', color: 'text-red-400' },
+  fan_speed: { level: 0, max: 5, cost: 150, name: 'ТУРБО-СДУВ', icon: 'fan', color: 'text-blue-400' },
+  fan_battery: { level: 0, max: 5, cost: 250, name: 'БАТАРЕЙКА ИЗ ПУЛЬТА', icon: 'zap', color: 'text-yellow-400' },
+  robot_capacity: { level: 0, max: 5, cost: 200, name: 'ШИРОКИЕ КАРМАНЫ', icon: 'bot', color: 'text-gray-400' },
+  robot_speed: { level: 0, max: 5, cost: 200, name: 'МАСЛО ДЛЯ ШЕСТЕРЕНОК', icon: 'zap', color: 'text-yellow-500' },
+  cat_duration: { level: 0, max: 5, cost: 300, name: 'КОФЕИН ДЛЯ КОТА', icon: 'clock', color: 'text-pink-400' },
+  cat_speed: { level: 0, max: 5, cost: 400, name: 'ОЗВЕРИН', icon: 'zap', color: 'text-orange-500' }
+};
+
+const INITIAL_TICKET_EXP = { plate: 0, ticket_2win: 0, ticket_mini: 0, ticket_apple: 0, ticket_quick: 0, ticket_cat: 0 };
+
+// --- СОСТОЯНИЕ (STATE) ---
+let state = {
+    money: 0,
+    itemsOnTable: [],
+    floatingTexts: [],
+    unlockedItems: ['plate'],
+    unlockedGadgets: ['trash'],
+    scratchedCount: 0,
+    upgrades: JSON.parse(JSON.stringify(INITIAL_UPGRADES)),
+    ticketExp: JSON.parse(JSON.stringify(INITIAL_TICKET_EXP)),
+    phoneState: 'idle',
+    phoneDialog: 0,
+    currentPhoneMsg: '',
+    isFanActive: false,
+    fanAutoTimer: 0,
+    leftTab: 'tickets',
+    robotQueue: [],
+    catState: 'sleeping',
+    catTimer: 0,
+    catMaxTimer: 0,
+    catTargetUid: null,
+    catProgress: 0,
+    activeScratchItem: null,
+    draggedItem: null
+};
+
+let cheatBuffer = '';
+
+// --- СОХРАНЕНИЕ И ЗАГРУЗКА ---
+function saveGame() {
+    const data = {
+        money: state.money, unlockedItems: state.unlockedItems, unlockedGadgets: state.unlockedGadgets,
+        scratchedCount: state.scratchedCount, upgrades: state.upgrades, ticketExp: state.ticketExp
+    };
+    localStorage.setItem('scritchy_save_pixel_v4', JSON.stringify(data));
+}
+
+function loadGame() {
+    const save = localStorage.getItem('scritchy_save_pixel_v4');
+    if (save) {
+        try {
+            const data = JSON.parse(save);
+            state.money = data.money || 0;
+            state.unlockedItems = data.unlockedItems || ['plate'];
+            state.unlockedGadgets = data.unlockedGadgets || ['trash'];
+            state.scratchedCount = data.scratchedCount || 0;
+            for (let k in INITIAL_UPGRADES) {
+                if (data.upgrades && data.upgrades[k]) {
+                    state.upgrades[k].level = data.upgrades[k].level;
+                    state.upgrades[k].cost = data.upgrades[k].cost;
+                }
+            }
+            if (data.ticketExp) state.ticketExp = { ...INITIAL_TICKET_EXP, ...data.ticketExp };
+        } catch(e) {}
+    }
+}
+
+// --- РАСЧЕТ УРОВНЕЙ БИЛЕТОВ ---
+function getTicketLevel(id) {
+    const exp = state.ticketExp[id] || 0;
+    if (exp >= 50) return 5;
+    if (exp >= 25) return 4;
+    if (exp >= 10) return 3;
+    if (exp >= 3) return 2;
+    return 1;
+}
+
+function getNextLevelReq(id) {
+    const exp = state.ticketExp[id] || 0;
+    if (exp < 3) return 3;
+    if (exp < 10) return 10;
+    if (exp < 25) return 25;
+    if (exp < 50) return 50;
+    return 'MAX';
+}
+
+// --- ОСНОВНЫЕ ЭЛЕМЕНТЫ DOM ---
+const elMoney = document.getElementById('ui-money');
+const elProgressText = document.getElementById('ui-progress-text');
+const elProgressMax = document.getElementById('ui-progress-max');
+const elProgressBar = document.getElementById('ui-progress-bar');
+const elShopContainer = document.getElementById('shop-container');
+const elUpgradesContainer = document.getElementById('upgrades-container');
+const elTableArea = document.getElementById('table-area');
+const elTableBounds = document.getElementById('table-bounds');
+const elItemsContainer = document.getElementById('items-container');
+const elFloatingTexts = document.getElementById('floating-texts');
+const elGadgetsContainer = document.getElementById('gadgets-container');
+const elPhone = document.getElementById('ui-phone');
+const elPhoneRing = document.getElementById('ui-phone-ring');
+const elPhoneDialog = document.getElementById('ui-phone-dialog');
+const elPhoneMsg = document.getElementById('ui-phone-msg');
+const elTrashCan = document.getElementById('trash-can');
+const elScratchModal = document.getElementById('scratch-modal');
+
+// --- ЗВУКОВАЯ СИСТЕМА ---
+let audioCtx = null;
+let scratchOsc = null;
+let scratchGain = null;
+let phoneRingInterval = null;
+
+function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playSound(type) {
+    try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        
+        if (type === 'click') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+            gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now); osc.stop(now + 0.05);
+        } else if (type === 'buy') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(400, now); osc.frequency.setValueAtTime(600, now + 0.05);
+            gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now + 0.15);
+            osc.start(now); osc.stop(now + 0.15);
+        } else if (type === 'win') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(300, now); osc.frequency.setValueAtTime(500, now + 0.1);
+            osc.frequency.setValueAtTime(700, now + 0.2); osc.frequency.setValueAtTime(900, now + 0.3);
+            gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
+            osc.start(now); osc.stop(now + 0.5);
+        } else if (type === 'lose') {
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+            gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
+        } else if (type === 'jackpot') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(400, now); osc.frequency.setValueAtTime(600, now + 0.1);
+            osc.frequency.setValueAtTime(800, now + 0.2); osc.frequency.setValueAtTime(1000, now + 0.3); osc.frequency.setValueAtTime(1200, now + 0.4);
+            gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
+            osc.start(now); osc.stop(now + 1.0);
+        } else if (type === 'ring') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(600, now); osc.frequency.setValueAtTime(800, now + 0.05);
+            osc.frequency.setValueAtTime(600, now + 0.1); osc.frequency.setValueAtTime(800, now + 0.15);
+            gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.25);
+            osc.start(now); osc.stop(now + 0.25);
+        }
+    } catch (e) {}
+}
+
+function startScratchSound() {
+    if (scratchGain) return;
+    try {
+        initAudio();
+        const bufferSize = audioCtx.sampleRate * 1;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        
+        scratchOsc = audioCtx.createBufferSource();
+        scratchOsc.buffer = buffer; scratchOsc.loop = true;
+        
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass'; filter.frequency.value = 1500; filter.Q.value = 2; 
+        
+        scratchGain = audioCtx.createGain();
+        scratchGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        scratchGain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05);
+        
+        scratchOsc.connect(filter); filter.connect(scratchGain); scratchGain.connect(audioCtx.destination);
+        scratchOsc.start();
+    } catch(e) {}
+}
+
+function stopScratchSound() {
+    if (scratchGain) {
+        const gain = scratchGain; const osc = scratchOsc;
+        scratchGain = null; scratchOsc = null;
+        try {
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+            setTimeout(() => { try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch(e){} }, 150);
+        } catch(e) {}
+    }
+}
+
+// --- ИНИЦИАЛИЗАЦИЯ ---
+function init() {
+    loadGame(); 
+    bindEvents();
+    renderAll();
+    requestAnimationFrame(gameLoop);
+    setInterval(() => {
+        if(state.fanAutoTimer > 0) {
+            state.fanAutoTimer--;
+            renderGadgets(); 
+        }
+    }, 1000);
+}
+
+function bindEvents() {
+    document.addEventListener('click', initAudio, { once: true });
+    document.addEventListener('pointerdown', initAudio, { once: true });
+
+    document.getElementById('tab-tickets').addEventListener('click', () => { playSound('click'); state.leftTab = 'tickets'; renderShop(); });
+    document.getElementById('tab-gadgets').addEventListener('click', () => { playSound('click'); state.leftTab = 'gadgets'; renderShop(); });
+    document.getElementById('btn-reset').addEventListener('click', handleReset);
+    
+    elPhone.addEventListener('click', handlePhoneClick);
+    
+    elTableArea.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+    
+    document.getElementById('btn-close-modal').addEventListener('click', closeScratchModal);
+    
+    const canvas = document.getElementById('scratch-canvas');
+    canvas.addEventListener('pointerdown', handleScratchStart);
+    canvas.addEventListener('pointermove', handleScratchMove);
+    canvas.addEventListener('pointerup', handleScratchEnd);
+    canvas.addEventListener('pointerleave', handleScratchEnd);
+
+    document.addEventListener('keydown', (e) => {
+        if (!e.key) return;
+        cheatBuffer += e.key.toLowerCase();
+        if (cheatBuffer.length > 10) cheatBuffer = cheatBuffer.slice(-10);
+
+        if (cheatBuffer.endsWith('ltymub')) {
+            state.money += 100000;
+            playSound('jackpot');
+            renderStats();
+            saveGame();
+            const jp = document.getElementById('ui-jackpot');
+            const originalHTML = jp.innerHTML;
+            jp.innerHTML = `<h1 class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-green-300 to-green-600 drop-shadow-[6px_6px_0_#000] animate-jackpot text-center uppercase tracking-widest leading-tight" style="-webkit-text-stroke: 4px black;">ЧИТ-КОД:<br>+100,000₽</h1>`;
+            jp.classList.remove('hidden'); jp.classList.add('flex');
+            setTimeout(() => { jp.classList.add('hidden'); jp.classList.remove('flex'); jp.innerHTML = originalHTML; }, 3000);
+            cheatBuffer = '';
+        }
+    });
+}
+
+// --- РЕНДЕРИНГ (UI UPDATE) ---
+function renderAll() {
+    renderStats(); renderShop(); renderUpgrades(); renderTableItems(); renderGadgets(); renderPhone(); lucide.createIcons();
+}
+
+function renderStats() {
+    elMoney.innerText = state.money;
+    const nextProgression = PROGRESSION_STEPS.find(step => !state.unlockedItems.includes(step.unlock));
+    elProgressText.innerText = `СТЕРТО: ${state.scratchedCount}`;
+    elProgressMax.innerText = nextProgression ? `${state.scratchedCount}/${nextProgression.count}` : 'МАКС';
+    elProgressBar.style.width = nextProgression ? `${Math.min(100, (state.scratchedCount / nextProgression.count) * 100)}%` : '100%';
+}
+
+function renderShop() {
+    document.getElementById('tab-tickets').className = `flex-1 py-1 rounded-sm text-sm font-bold border-4 ${state.leftTab === 'tickets' ? 'bg-[#364958] border-[#000] text-white' : 'bg-[#2a2e3b] border-[#000] text-gray-500'} uppercase shadow-md active:translate-y-1 active:shadow-sm`;
+    document.getElementById('tab-gadgets').className = `flex-1 py-1 rounded-sm text-sm font-bold border-4 ${state.leftTab === 'gadgets' ? 'bg-[#364958] border-[#000] text-white' : 'bg-[#2a2e3b] border-[#000] text-gray-500'} uppercase shadow-md active:translate-y-1 active:shadow-sm`;
+    
+    elShopContainer.innerHTML = '';
+    if (state.leftTab === 'tickets') {
+        Object.values(SHOP_ITEMS).forEach(item => {
+            const isUnlocked = state.unlockedItems.includes(item.id);
+            const lvl = getTicketLevel(item.id);
+            const exp = state.ticketExp[item.id] || 0;
+            const nextReq = getNextLevelReq(item.id);
+            const expPercent = nextReq === 'MAX' ? 100 : (exp / nextReq) * 100;
+            
+            const div = document.createElement('div');
+            div.className = `p-2 rounded-md border-4 shadow-md transition-colors ${isUnlocked ? 'bg-[#1e212b] border-[#000]' : 'bg-[#1a1c23] border-[#111] opacity-60'}`;
+            div.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div class="flex-1 pr-2">
+                        <span class="font-bold text-sm text-[#fff] drop-shadow-md">${item.name}</span>
+                        ${isUnlocked ? `
+                            <div class="mt-1 flex items-center justify-between text-[10px] text-gray-300 font-bold">
+                               <span class="text-yellow-400">УР. ${lvl}</span>
+                               <span>${nextReq === 'MAX' ? 'МАКС' : exp + '/' + nextReq}</span>
+                            </div>
+                            <div class="w-full bg-black h-2 rounded-sm mt-1 overflow-hidden shadow-inner border-2 border-[#333]">
+                               <div class="bg-blue-500 h-full" style="width: ${expPercent}%"></div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    ${isUnlocked ? `<div class="w-8 h-8 rounded-sm ${item.color} flex items-center justify-center border-2 border-black shadow-md shrink-0 text-xl leading-none pt-1">🎟️</div>` : `<div class="w-8 h-8 rounded bg-gray-800 flex items-center justify-center text-xs shrink-0 border-2 border-black">🔒</div>`}
+                </div>
+                ${isUnlocked ? `
+                    <div class="mt-2">
+                        <button onclick="event.stopPropagation(); spawnItem('${item.id}')" class="w-full bg-[#2d5a2d] hover:bg-[#3a703a] border-4 border-[#000] py-1.5 rounded-md text-white text-xs font-bold transition-transform shadow-md active:translate-y-1 active:shadow-sm">КУПИТЬ ${item.cost}₽</button>
+                    </div>
+                ` : `<div class="text-gray-500 text-[10px] mt-1 font-bold">ЗАКРЫТО</div>`}
+            `;
+            elShopContainer.appendChild(div);
+        });
+    } else {
+        Object.values(GADGETS).forEach(g => {
+            const isUnlocked = state.unlockedGadgets.includes(g.id);
+            const div = document.createElement('div');
+            div.className = `p-2 rounded-md border-4 shadow-md flex justify-between items-center transition-all ${isUnlocked ? 'bg-[#2a4030] border-[#000]' : 'bg-[#1e212b] border-[#000] cursor-pointer hover:bg-[#252833] active:translate-y-1 active:shadow-sm'}`;
+            div.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i data-lucide="${g.icon}" class="w-5 h-5 drop-shadow-md ${isUnlocked ? 'text-green-400' : 'text-gray-400'}"></i>
+                    <span class="text-xs font-bold text-white drop-shadow-md">${g.name}</span>
+                </div>
+                ${!isUnlocked ? `<span class="text-yellow-400 text-xs font-black drop-shadow-md">${g.cost}₽</span>` : `<span class="text-green-400 text-xs font-black drop-shadow-md">✓</span>`}
+            `;
+            if (!isUnlocked) div.onclick = () => buyGadget(g.id);
+            elShopContainer.appendChild(div);
+        });
+    }
+    lucide.createIcons();
+}
+
+function renderUpgrades() {
+    elUpgradesContainer.innerHTML = '';
+    Object.entries(state.upgrades).forEach(([id, u]) => {
+        const isMax = u.level >= u.max;
+        const canAfford = state.money >= u.cost;
+        const div = document.createElement('div');
+        div.className = `p-3 rounded-md border-4 shadow-md ${isMax ? 'bg-[#2a2a2a] border-[#000]' : canAfford ? 'bg-[#23353e] border-[#000] hover:bg-[#2a3f4a] cursor-pointer active:translate-y-1 active:shadow-sm' : 'bg-[#1c2429] border-[#000] opacity-80'}`;
+        div.innerHTML = `
+            <div class="flex gap-3">
+                <div class="w-10 h-10 rounded-sm bg-[#141b20] flex items-center justify-center border-2 border-[#000] shadow-inner ${u.color}"><i data-lucide="${u.icon}" class="w-6 h-6 drop-shadow-md"></i></div>
+                <div class="flex-1">
+                    <div class="font-bold text-[10px] text-white leading-tight mb-1 drop-shadow-md">${u.name}</div>
+                    <div class="flex justify-between items-end">
+                        <div class="text-[10px] text-gray-300 font-bold">УР. ${u.level}/${u.max}</div>
+                        <div class="text-[10px] font-black drop-shadow-md ${canAfford ? 'text-yellow-400' : 'text-red-500'}">${isMax ? 'МАКС' : u.cost + '₽'}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2 w-full bg-black h-2 rounded-sm overflow-hidden shadow-inner border-2 border-[#333]">
+                <div class="bg-blue-500 h-full" style="width: ${(u.level / u.max) * 100}%"></div>
+            </div>
+        `;
+        if (!isMax) div.onclick = () => buyUpgrade(id);
+        elUpgradesContainer.appendChild(div);
+    });
+    lucide.createIcons();
+}
+
+function wakeUpCat() {
+    if (state.catState === 'sleeping') {
+        playSound('buy');
+        state.catState = 'awake';
+        state.catTimer = 10 + (state.upgrades.cat_duration.level * 5); 
+        state.catMaxTimer = state.catTimer;
+        renderGadgets();
+    }
+}
+
+function getMiniTicketHTML(templateId, waiting) {
+    if (templateId === 'plate') {
+        return `<div class="w-full h-full bg-[#a0aec0] rounded-full border-[6px] border-[#000] shadow-md flex items-center justify-center relative">
+            <div class="w-[60%] h-[60%] bg-[#f7d2b7] rounded-full blur-none ${waiting ? 'opacity-0' : 'opacity-100'} border-4 border-[#e6bc9a]"></div>
+            ${waiting ? '<div class="absolute text-xl animate-pulse drop-shadow-md font-black">✨</div>' : ''}
+        </div>`;
+    }
+    const t = SHOP_ITEMS[templateId];
+    if (!t) return '';
+    let title = t.name;
+
+    return `
+        <div class="w-full h-full ${t.color} border-4 border-[#000] rounded-sm flex flex-col items-center justify-center shadow-md overflow-hidden pointer-events-none relative ${waiting ? 'brightness-75' : ''}">
+            <div class="text-white font-black text-[8px] tracking-wider w-full text-center bg-black/40 pb-[1px] leading-none pt-[3px] border-b-2 border-black">${title}</div>
+            <div class="flex gap-[2px] mt-[3px] text-white text-[10px] leading-none font-bold drop-shadow-md">
+                ${waiting ? '<span class="text-green-400 animate-pulse">ГОТОВО</span>' : '???'}
+            </div>
+            ${waiting ? '<div class="absolute inset-0 border-4 border-green-500/80 rounded-sm animate-pulse"></div>' : ''}
+        </div>
+    `;
+}
+
+function renderTableItems() {
+    elItemsContainer.innerHTML = '';
+    state.itemsOnTable.forEach(item => {
+        const isDragged = state.draggedItem && state.draggedItem.uid === item.uid;
+        const pointerClass = (item.scratched && !item.waitingForReward) ? 'pointer-events-none' : 'pointer-events-auto';
+        const div = document.createElement('div');
+        div.className = `absolute cursor-pointer select-none transition-transform ${isDragged ? 'scale-110 z-50 shadow-[8px_8px_0_rgba(0,0,0,0.6)]' : 'hover:scale-105 z-10'} ${pointerClass} ${item.scratched && !item.waitingForReward ? 'opacity-50 grayscale' : ''}`;
+        div.style.left = item.x + 'px';
+        div.style.top = item.y + 'px';
+        div.style.width = '80px';
+        div.style.height = '60px';
+        div.dataset.uid = item.uid;
+        div.innerHTML = getMiniTicketHTML(item.templateId, item.waitingForReward);
+        elItemsContainer.appendChild(div);
+    });
+}
+
+function renderGadgets() {
+    elGadgetsContainer.innerHTML = '';
+    elTrashCan.style.display = state.unlockedGadgets.includes('trash') ? 'flex' : 'none';
+
+    const isFanRunning = state.isFanActive || state.fanAutoTimer > 0;
+
+    if (state.unlockedGadgets.includes('fan')) {
+        const fanDiv = document.createElement('div');
+        fanDiv.className = `absolute top-6 left-6 z-10 cursor-pointer pointer-events-auto shadow-md transition-transform active:translate-y-1 active:shadow-sm`;
+        fanDiv.onpointerdown = () => { state.isFanActive = true; renderGadgets(); };
+        fanDiv.onpointerup = () => { state.isFanActive = false; if(state.upgrades.fan_battery.level > 0) state.fanAutoTimer = state.upgrades.fan_battery.level * 5; renderGadgets(); };
+        fanDiv.onpointerleave = () => { state.isFanActive = false; renderGadgets(); };
+        fanDiv.innerHTML = `
+            <div class="w-20 h-20 bg-[#4a5568] rounded-full border-4 border-[#000] flex items-center justify-center relative ${isFanRunning ? 'scale-95' : ''}">
+                <div class="absolute w-full h-full border-[8px] border-dashed border-[#111] rounded-full opacity-60" style="animation: ${isFanRunning ? 'spin-fast 1s' : 'spin-slow 6s'} linear infinite;"></div>
+                <div class="w-8 h-8 bg-[#2d3748] rounded-full z-10 flex items-center justify-center border-4 border-black"><div class="w-2 h-2 bg-[#fff] rounded-full"></div></div>
+                <div class="absolute w-2 h-14 bg-[#111] rounded-full" style="animation: ${isFanRunning ? 'spin-fast 0.5s' : 'spin-slow 3s'} linear infinite;"></div>
+                <div class="absolute w-14 h-2 bg-[#111] rounded-full" style="animation: ${isFanRunning ? 'spin-fast 0.5s' : 'spin-slow 3s'} linear infinite;"></div>
+            </div>
+            ${isFanRunning ? `<div class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-white bg-black/60 px-1 rounded animate-pulse whitespace-nowrap drop-shadow-md">СДУВАЮ! ${state.fanAutoTimer > 0 ? `(${state.fanAutoTimer}с)` : ''}</div>` : ''}
+        `;
+        elGadgetsContainer.appendChild(fanDiv);
+    }
+
+    if (state.unlockedGadgets.includes('cat')) {
+        const catDiv = document.createElement('div');
+        catDiv.id = "cat-module";
+        catDiv.className = `absolute top-[40%] left-8 z-10 w-20 h-20 bg-[#2a2d36] rounded-md flex flex-col items-center justify-center shadow-md border-4 border-[#000] pointer-events-auto cursor-pointer transition-transform active:translate-y-1 active:shadow-sm`;
+        catDiv.onpointerdown = wakeUpCat;
+        catDiv.innerHTML = `
+            <div id="cat-emoji" class="text-4xl select-none relative z-10 drop-shadow-md">${state.catState === 'awake' ? '😺' : '😴'}</div>
+            <div id="cat-paw" class="hidden absolute top-[50%] -right-3 text-3xl origin-bottom-left select-none z-20 drop-shadow-md">🐾</div>
+            <div class="absolute bottom-0 left-0 w-full h-2 bg-[#000]">
+                <div id="cat-timer-bar" class="h-full bg-yellow-400" style="width: ${state.catMaxTimer ? (state.catTimer/state.catMaxTimer)*100 : 0}%"></div>
+            </div>
+        `;
+        elGadgetsContainer.appendChild(catDiv);
+    }
+
+    if (state.unlockedGadgets.includes('robot')) {
+        const robotDiv = document.createElement('div');
+        robotDiv.id = "robot-bounds";
+        robotDiv.className = `absolute bottom-6 right-6 flex flex-col items-center pointer-events-auto`;
+        
+        let queueHTML = state.robotQueue.map((q, index) => `
+            <div class="w-[50px] h-[35px] transition-all duration-300" style="margin-bottom: -25px; z-index: ${10 - index}">
+                ${getMiniTicketHTML(q.templateId, false)}
+            </div>
+        `).reverse().join('');
+
+        const progressWidth = state.robotQueue.length > 0 ? state.robotQueue[0].progress : 0;
+        const cap = state.upgrades.robot_capacity.level + 1;
+
+        robotDiv.innerHTML = `
+            <div class="absolute inset-0 z-0 flex flex-col-reverse items-center justify-end pb-20 pointer-events-none">${queueHTML}</div>
+            <div class="w-24 h-24 bg-[#5b6375] rounded-md border-4 border-[#000] shadow-xl relative flex flex-col items-center justify-end pb-3 z-10">
+                <div class="absolute -top-6 text-[10px] bg-black px-2 py-0.5 rounded-sm text-white font-bold tracking-wider shadow-sm border-2 border-[#333]">ВМЕЩ: ${state.robotQueue.length}/${cap}</div>
+                <div class="flex gap-4 mb-2">
+                    <div class="w-5 h-5 bg-yellow-400 rounded-sm border-4 border-[#000] flex items-center justify-center ${(isFanRunning || state.robotQueue.length > 0) ? 'animate-bounce' : ''}"><div class="w-1.5 h-1.5 bg-black"></div></div>
+                    <div class="w-5 h-5 bg-yellow-400 rounded-sm border-4 border-[#000] flex items-center justify-center ${(isFanRunning || state.robotQueue.length > 0) ? 'animate-bounce delay-100' : ''}"><div class="w-1.5 h-1.5 bg-black"></div></div>
+                </div>
+                <div class="w-16 h-4 bg-[#000] rounded-sm border-2 border-[#333] relative overflow-hidden shadow-inner">
+                    <div class="absolute top-0 left-0 h-full bg-blue-500" style="width: ${progressWidth}%"></div>
+                </div>
+            </div>
+        `;
+        elGadgetsContainer.appendChild(robotDiv);
+    }
+}
+
+function renderPhone() {
+    if (state.phoneState === 'ringing') {
+        elPhone.classList.add('animate-bounce');
+        elPhoneRing.classList.remove('hidden');
+        if (!phoneRingInterval) {
+            playSound('ring');
+            phoneRingInterval = setInterval(() => playSound('ring'), 1500);
+        }
+    } else {
+        elPhone.classList.remove('animate-bounce');
+        elPhoneRing.classList.add('hidden');
+        if (phoneRingInterval) {
+            clearInterval(phoneRingInterval);
+            phoneRingInterval = null;
+        }
+    }
+
+    if (state.phoneState === 'talking') {
+        elPhoneDialog.classList.remove('hidden');
+        elPhoneMsg.innerText = state.phoneDialog === 0 ? state.currentPhoneMsg : 'УДАЧНОЙ ИГРЫ!';
+    } else {
+        elPhoneDialog.classList.add('hidden');
+    }
+}
+
+// --- ИГРОВАЯ ЛОГИКА ---
+let lastTime = performance.now();
+function gameLoop(time) {
+    const dt = time - lastTime;
+    lastTime = time;
+
+    // --- ВЕНТИЛЯТОР ---
+    const isFanRunning = state.isFanActive || state.fanAutoTimer > 0;
+    const robotEl = document.getElementById('robot-bounds');
+    
+    if (isFanRunning && robotEl) {
+        const rRect = robotEl.getBoundingClientRect();
+        const tRect = elTableBounds.getBoundingClientRect();
+        const tx = rRect.left - tRect.left + rRect.width / 2 - 35;
+        const ty = rRect.top - tRect.top + 10;
+        const cap = state.upgrades.robot_capacity.level + 1;
+
+        let itemsToKeep = [];
+        let newlyQueued = [];
+        let itemsChanged = false;
+
+        state.itemsOnTable.forEach(item => {
+            if (item.scratched || item.waitingForReward || (state.draggedItem && state.draggedItem.uid === item.uid) || item.uid === state.catTargetUid) {
+                itemsToKeep.push(item);
+                return;
+            }
+            
+            const dx = tx - item.x;
+            const dy = ty - item.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < 15) {
+                if (state.robotQueue.length + newlyQueued.length < cap) {
+                    newlyQueued.push({ ...item, progress: 0 });
+                    itemsChanged = true;
+                } else {
+                    itemsToKeep.push(item);
+                }
+            } else {
+                const speed = 1.0 + (state.upgrades.fan_speed.level * 1.5);
+                itemsToKeep.push({ ...item, x: item.x + (dx / dist) * speed, y: item.y + (dy / dist) * speed });
+                itemsChanged = true;
+            }
+        });
+
+        if (itemsChanged) {
+            state.itemsOnTable = itemsToKeep;
+            if (newlyQueued.length > 0) state.robotQueue.push(...newlyQueued);
+            renderTableItems();
+            renderGadgets();
+        }
+    }
+
+    // --- РОБОТ ---
+    if (state.robotQueue.length > 0) {
+        const currentRobotRect = robotEl ? robotEl.getBoundingClientRect() : null;
+
+        const firstIdx = state.robotQueue.findIndex(q => q.progress < 100);
+        if (firstIdx !== -1) {
+            const speed = 0.003 + (state.upgrades.robot_speed.level * 0.005);
+            state.robotQueue[firstIdx].progress = Math.min(100, state.robotQueue[firstIdx].progress + speed * dt);
+            renderGadgets(); 
+        }
+        
+        const finishedIdx = state.robotQueue.findIndex(q => q.progress >= 100);
+        if (finishedIdx !== -1 && currentRobotRect) {
+            const finishedItem = state.robotQueue.splice(finishedIdx, 1)[0];
+            const tRect = elTableBounds.getBoundingClientRect();
+            
+            state.itemsOnTable.push({
+                ...finishedItem,
+                x: currentRobotRect.left - tRect.left - 20 + (Math.random() * 40),
+                y: currentRobotRect.top - tRect.top + currentRobotRect.height - 40 + (Math.random() * 20),
+                scratched: true,
+                waitingForReward: true
+            });
+            renderTableItems();
+            renderGadgets();
+        }
+    }
+
+    // --- АВТО-КОТ СБОРЩИК ---
+    if (state.catState === 'awake') {
+        state.catTimer -= (dt / 1000);
+        
+        const catEmoji = document.getElementById('cat-emoji');
+        const catPaw = document.getElementById('cat-paw');
+        const catTimerBar = document.getElementById('cat-timer-bar');
+        
+        if (catTimerBar) catTimerBar.style.width = `${(state.catTimer / state.catMaxTimer) * 100}%`;
+
+        if (state.catTimer <= 0) {
+            state.catState = 'sleeping';
+            state.catTargetUid = null;
+            state.catProgress = 0;
+            if (catEmoji) catEmoji.innerText = '😴';
+            if (catPaw) { catPaw.classList.add('hidden'); catPaw.classList.remove('animate-cat-scratch'); }
+        } else {
+            if (catEmoji && catEmoji.innerText !== '😺') catEmoji.innerText = '😺';
+            
+            if (!state.catTargetUid) {
+                if (catPaw) { catPaw.classList.add('hidden'); catPaw.classList.remove('animate-cat-scratch'); }
+                
+                let closest = null;
+                let minDist = Infinity;
+                const catEl = document.getElementById('cat-module');
+                if (catEl) {
+                    const cRect = catEl.getBoundingClientRect();
+                    const tRect = elTableBounds.getBoundingClientRect();
+                    const cx = cRect.left - tRect.left + cRect.width/2;
+                    const cy = cRect.top - tRect.top + cRect.height/2;
+
+                    state.itemsOnTable.forEach(item => {
+                        if (item.scratched && item.waitingForReward && (!state.draggedItem || item.uid !== state.draggedItem.uid)) {
+                            const dist = Math.hypot(item.x - cx, item.y - cy);
+                            if (dist < minDist) { minDist = dist; closest = item; }
+                        }
+                    });
+
+                    if (closest) {
+                        state.catTargetUid = closest.uid;
+                        state.catProgress = 0;
+                    }
+                }
+            } else {
+                const target = state.itemsOnTable.find(i => i.uid === state.catTargetUid);
+                if (target && target.scratched && target.waitingForReward && (!state.draggedItem || target.uid !== state.draggedItem.uid)) {
+                    const catEl = document.getElementById('cat-module');
+                    if (catEl) {
+                        const cRect = catEl.getBoundingClientRect();
+                        const tRect = elTableBounds.getBoundingClientRect();
+                        const cx = cRect.left - tRect.left + cRect.width/2 - 35;
+                        const cy = cRect.top - tRect.top + cRect.height/2 - 20;
+
+                        const dx = cx - target.x;
+                        const dy = cy - target.y;
+                        const dist = Math.hypot(dx, dy);
+
+                        if (dist > 15) {
+                            target.x += dx * 0.1;
+                            target.y += dy * 0.1;
+                            if (catPaw) { catPaw.classList.add('hidden'); catPaw.classList.remove('animate-cat-scratch'); }
+                            renderTableItems();
+                        } else {
+                            if (catPaw) { catPaw.classList.remove('hidden'); catPaw.classList.add('animate-cat-scratch'); }
+                            const speed = 50 + (state.upgrades.cat_speed.level * 25);
+                            state.catProgress += speed * (dt / 1000);
+                            
+                            target.x += (Math.random() * 4 - 2);
+                            target.y += (Math.random() * 4 - 2);
+                            renderTableItems(); 
+
+                            if (state.catProgress >= 100) {
+                                state.money += target.result.payout;
+                                state.scratchedCount++;
+                                state.ticketExp[target.templateId] = (state.ticketExp[target.templateId] || 0) + 1;
+                                
+                                createFloatingText(target.result.payout, cx + 35, cy - 20);
+                                if(target.result.payout > 0) playSound('win'); else playSound('lose');
+                                checkJackpot(target.result.payout, target);
+
+                                state.itemsOnTable = state.itemsOnTable.filter(it => it.uid !== target.uid);
+                                state.catTargetUid = null;
+                                state.catProgress = 0;
+                                
+                                saveGame();
+                                renderStats();
+                                renderShop();
+                                renderTableItems();
+                            }
+                        }
+                    }
+                } else {
+                    state.catTargetUid = null; 
+                }
+            }
+        }
+    }
+
+    // Проверка телефона
+    const nextProg = PROGRESSION_STEPS.find(step => !state.unlockedItems.includes(step.unlock));
+    if (nextProg && state.scratchedCount >= nextProg.count && state.phoneState === 'idle') {
+        state.currentPhoneMsg = nextProg.msg;
+        state.phoneState = 'ringing';
+        renderPhone();
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+// МАГАЗИН И ГЕНЕРАЦИЯ БИЛЕТОВ
+function spawnItem(itemId) {
+    const itemData = SHOP_ITEMS[itemId];
+    if (state.money < itemData.cost) return;
+    
+    playSound('buy');
+    state.money -= itemData.cost;
+    saveGame(); 
+    renderStats();
+
+    const lvl = getTicketLevel(itemId);
+    const mult = 1 + (lvl - 1) * 0.5;
+    
+    const luckLvl = state.upgrades.luck.level;
+    const luckBonus = (state.scratchedCount * 0.0005) + (luckLvl * 0.05);
+
+    let result = { win: false, payout: 0, symbols: [] };
+    
+    if (itemId === 'plate') {
+      const isWin = Math.random() < Math.min(0.99, 0.90 + luckBonus);
+      result.win = isWin; result.payout = isWin ? Math.floor(3 * mult) : Math.floor(-3 * mult);
+    } else if (itemId === 'ticket_2win') {
+      const r = Math.random(); let winSym = null;
+      if (r < 0.02 + luckLvl*0.01 + luckBonus/10) winSym = SYMBOLS.DIAMOND;
+      else if (r < 0.15 + luckLvl*0.02 + luckBonus/5) winSym = SYMBOLS.MONEY_BAG;
+      else if (r < 0.40 + luckLvl*0.03 + luckBonus/2) winSym = SYMBOLS.CASH;
+      else if (r < 0.60 + luckBonus) winSym = SYMBOLS.CHERRY;
+      
+      if (winSym) {
+        result.win = true; result.payout = Math.floor(winSym.value * mult);
+        const other = SYMBOLS.LEMON;
+        result.symbols = [winSym.icon, winSym.icon, other.icon].sort(() => Math.random() - 0.5);
+      } else {
+        result.symbols = [SYMBOLS.CHERRY.icon, SYMBOLS.LEMON.icon, SYMBOLS.BELL.icon];
+        result.payout = 0;
+      }
+    } else if (itemId === 'ticket_mini') {
+      const isWin = Math.random() < Math.min(0.8, 0.45 + luckBonus);
+      if (isWin) {
+        const wR = Math.random();
+        let wSym = SYMBOLS.CASH;
+        if(wR < 0.1) wSym = SYMBOLS.DIAMOND;
+        else if(wR < 0.4) wSym = SYMBOLS.MONEY_BAG;
+        
+        result.win = true; result.payout = Math.floor(wSym.value * 2 * mult);
+        result.symbols = [wSym.icon, wSym.icon, wSym.icon, SYMBOLS.CHERRY.icon, SYMBOLS.LEMON.icon].sort(() => Math.random() - 0.5);
+      } else {
+        result.symbols = [SYMBOLS.DIAMOND.icon, SYMBOLS.MONEY_BAG.icon, SYMBOLS.CASH.icon, SYMBOLS.CHERRY.icon, SYMBOLS.LEMON.icon];
+      }
+    } else if (itemId === 'ticket_apple') {
+      let total = 0; let syms = [];
+      for(let i=0; i<5; i++) {
+        const r = Math.random();
+        if (r < Math.max(0.05, 0.20 - luckBonus)) { syms.push(SYMBOLS.WORM); total += Math.floor(SYMBOLS.WORM.value * mult); }
+        else if (r < 0.6) { syms.push(SYMBOLS.APPLE_G); total += Math.floor(SYMBOLS.APPLE_G.value * mult); }
+        else if (r < 0.9) { syms.push(SYMBOLS.APPLE_R); total += Math.floor(SYMBOLS.APPLE_R.value * mult); }
+        else { syms.push(SYMBOLS.APPLE_Y); total += Math.floor(SYMBOLS.APPLE_Y.value * mult); }
+      }
+      result.win = total > 0; result.payout = total; result.symbols = syms.map(s => s.icon);
+    } else if (itemId === 'ticket_quick') {
+      const isWin = Math.random() < Math.min(0.8, 0.40 + luckBonus);
+      let basePayout = 0;
+      if (isWin) {
+        result.win = true; basePayout = Math.floor(SYMBOLS.CASH.value * mult);
+        result.symbols = [SYMBOLS.CASH.icon, SYMBOLS.CASH.icon, SYMBOLS.CASH.icon, SYMBOLS.LEMON.icon, SYMBOLS.BELL.icon, SYMBOLS.CHERRY.icon].sort(() => Math.random() - 0.5);
+      } else {
+        result.symbols = [SYMBOLS.DIAMOND.icon, SYMBOLS.MONEY_BAG.icon, SYMBOLS.CASH.icon, SYMBOLS.CHERRY.icon, SYMBOLS.LEMON.icon, SYMBOLS.BELL.icon];
+      }
+      const bRand = Math.random(); let bonusObj = SYMBOLS.BONUS_NONE;
+      if (bRand < 0.1 + luckBonus/5) bonusObj = SYMBOLS.BONUS_X2;
+      else if (bRand < 0.4 + luckBonus/2) bonusObj = SYMBOLS.BONUS_PLUS;
+      result.bonus = bonusObj.icon;
+      if (isWin) {
+        if (bonusObj === SYMBOLS.BONUS_X2) result.payout = basePayout * 2;
+        else if (bonusObj === SYMBOLS.BONUS_PLUS) result.payout = basePayout + Math.floor(SYMBOLS.BONUS_PLUS.value * mult);
+        else result.payout = basePayout;
+      }
+    } else if (itemId === 'ticket_cat') {
+      let syms = []; let total = 0; let hasCat = false;
+      for(let i=0; i<5; i++) {
+        const r = Math.random();
+        if (r < Math.max(0.02, 0.15 - luckBonus)) { syms.push(SYMBOLS.CAT.icon); total += Math.floor(SYMBOLS.CAT.value * mult); hasCat = true; }
+        else if (r < 0.5) { syms.push(SYMBOLS.YARN.icon); total += Math.floor(SYMBOLS.YARN.value * mult); }
+        else if (r < 0.9) { syms.push(SYMBOLS.FISH.icon); total += Math.floor(SYMBOLS.FISH.value * mult); }
+        else { syms.push(SYMBOLS.PAW.icon); total += Math.floor(SYMBOLS.PAW.value * mult); }
+      }
+      result.symbols = syms; result.payout = total; result.win = total > 0;
+    }
+
+    const newItem = {
+      uid: Math.random().toString(36).substr(2, 9),
+      templateId: itemId,
+      x: 200 + Math.random() * 200,
+      y: 150 + Math.random() * 150,
+      level: lvl, 
+      mult: mult,
+      scratched: false,
+      waitingForReward: false,
+      result: result
+    };
+    
+    state.itemsOnTable.push(newItem);
+    renderTableItems();
+}
+
+// --- ИВЕНТЫ ---
+function handleReset() {
+    if(confirm('СБРОСИТЬ ВЕСЬ ПРОГРЕСС?')) {
+        playSound('click');
+        localStorage.removeItem('scritchy_save_pixel_v4'); 
+        state = {
+            money: 0, itemsOnTable: [], floatingTexts: [], unlockedItems: ['plate'], unlockedGadgets: ['trash'],
+            scratchedCount: 0, upgrades: JSON.parse(JSON.stringify(INITIAL_UPGRADES)), ticketExp: JSON.parse(JSON.stringify(INITIAL_TICKET_EXP)),
+            phoneState: 'idle', phoneDialog: 0, currentPhoneMsg: '', isFanActive: false, fanAutoTimer: 0, leftTab: 'tickets',
+            robotQueue: [], catState: 'sleeping', catTimer: 0, catTargetUid: null, catProgress: 0,
+            activeScratchItem: null, draggedItem: null
+        };
+        renderAll();
+    }
+}
+
+function handlePhoneClick() {
+    playSound('click');
+    if (state.phoneState === 'ringing') {
+        state.phoneState = 'talking';
+        state.phoneDialog = 0;
+    } else if (state.phoneState === 'talking') {
+        if (state.phoneDialog === 0) {
+            state.phoneDialog = 1;
+        } else {
+            state.phoneState = 'idle';
+            state.phoneDialog = 0;
+            const nextProgression = PROGRESSION_STEPS.find(step => !state.unlockedItems.includes(step.unlock));
+            if (nextProgression && !state.unlockedItems.includes(nextProgression.unlock)) {
+                state.unlockedItems.push(nextProgression.unlock);
+                saveGame(); 
+            }
+            renderStats();
+            renderShop();
+        }
+    }
+    renderPhone();
+}
+
+function buyGadget(id) {
+    const g = GADGETS[id];
+    if (state.money >= g.cost && !state.unlockedGadgets.includes(id)) {
+        playSound('buy');
+        state.money -= g.cost;
+        state.unlockedGadgets.push(id);
+        saveGame(); 
+        renderStats();
+        renderShop();
+        renderGadgets();
+    }
+}
+
+function buyUpgrade(id) {
+    const u = state.upgrades[id];
+    if (state.money >= u.cost && u.level < u.max) {
+        playSound('buy');
+        state.money -= u.cost;
+        u.level++;
+        u.cost = Math.floor(u.cost * 1.8);
+        saveGame(); 
+        renderStats();
+        renderUpgrades();
+    }
+}
+
+// DRAG & DROP И КЛИКИ
+function handlePointerDown(e) {
+    const target = e.target.closest('[data-uid]');
+    if (!target) return;
+    
+    const uid = target.dataset.uid;
+    const item = state.itemsOnTable.find(it => it.uid === uid);
+    
+    if (!item) return;
+
+    if (item.waitingForReward) {
+        playSound('click');
+        openScratchModal(item, true); 
+        state.itemsOnTable = state.itemsOnTable.filter(it => it.uid !== uid);
+        renderTableItems();
+        return;
+    }
+
+    if (!item.scratched) {
+        playSound('click');
+        const rect = elTableBounds.getBoundingClientRect();
+        item.offsetX = e.clientX - rect.left - item.x;
+        item.offsetY = e.clientY - rect.top - item.y;
+        state.draggedItem = item;
+        state._dragStartPos = { x: e.clientX, y: e.clientY };
+    }
+}
+
+function handlePointerMove(e) {
+    if (!state.draggedItem) return;
+    const rect = elTableBounds.getBoundingClientRect();
+    state.draggedItem.x = e.clientX - rect.left - state.draggedItem.offsetX;
+    state.draggedItem.y = e.clientY - rect.top - state.draggedItem.offsetY;
+    
+    const domEl = document.querySelector(`[data-uid="${state.draggedItem.uid}"]`);
+    if(domEl) {
+        domEl.style.left = state.draggedItem.x + 'px';
+        domEl.style.top = state.draggedItem.y + 'px';
+        domEl.classList.add('scale-110', 'z-50', 'shadow-[6px_6px_0_rgba(0,0,0,0.6)]');
+    }
+}
+
+function handlePointerUp(e) {
+    if (!state.draggedItem) return;
+    
+    const isClick = state._dragStartPos && Math.abs(e.clientX - state._dragStartPos.x) < 5 && Math.abs(e.clientY - state._dragStartPos.y) < 5;
+    
+    if (isClick && !state.draggedItem.scratched) {
+        openScratchModal(state.draggedItem);
+        state.draggedItem = null;
+        renderTableItems();
+        return;
+    }
+
+    const cx = e.clientX, cy = e.clientY;
+    const tRect = elTrashCan.style.display !== 'none' ? elTrashCan.getBoundingClientRect() : null;
+    
+    if (tRect && cx >= tRect.left && cx <= tRect.right && cy >= tRect.top && cy <= tRect.bottom) {
+        playSound('click');
+        state.itemsOnTable = state.itemsOnTable.filter(it => it.uid !== state.draggedItem.uid);
+    } else {
+        const robotEl = document.getElementById('robot-bounds');
+        const rRect = robotEl ? robotEl.getBoundingClientRect() : null;
+        if (rRect && cx >= rRect.left && cx <= rRect.right && cy >= rRect.top && cy <= rRect.bottom) {
+            const cap = state.upgrades.robot_capacity.level + 1;
+            if (state.robotQueue.length < cap) {
+                playSound('click');
+                state.robotQueue.push({ ...state.draggedItem, progress: 0 });
+                state.itemsOnTable = state.itemsOnTable.filter(it => it.uid !== state.draggedItem.uid);
+                renderGadgets();
+            }
+        }
+    }
+    
+    state.draggedItem = null;
+    renderTableItems();
+}
+
+function createFloatingText(val, x, y) {
+    const div = document.createElement('div');
+    div.className = `absolute z-50 font-black text-2xl drop-shadow-md pointer-events-none animate-float-up ${val > 0 ? 'text-green-400' : 'text-red-400'}`;
+    div.style.left = (x + 10) + 'px';
+    div.style.top = (y - 10) + 'px';
+    
+    let text = (val > 0 ? '+' : '') + val + '₽';
+    if (val <= 0 && Math.random() > 0.6) {
+        const funny = ['АУЧ!', 'ФИАСКО', 'БОЛЬ', 'ГДЕ ДЕНЬГИ?', 'МИНУС ВАЙБ'];
+        text = funny[Math.floor(Math.random() * funny.length)] + '\n' + text;
+    }
+    div.innerText = text;
+    
+    elFloatingTexts.appendChild(div);
+    setTimeout(() => div.remove(), 1500);
+}
+
+// --- ИНФО ПАНЕЛЬ ---
+function getTicketChances(templateId, mult) {
+    const v = (base) => Math.floor(base * mult) + '₽';
+    const luckLvl = state.upgrades.luck.level;
+    const luckBonus = (state.scratchedCount * 0.0005) + (luckLvl * 0.05);
+    const formatPct = (p) => Math.max(0, Math.min(100, Math.round(p * 100))) + '%';
+
+    switch(templateId) {
+        case 'plate': {
+            const winP = Math.min(0.99, 0.90 + luckBonus);
+            return [
+                {icon: '✨', prob: 'УСПЕХ', percent: formatPct(winP), val: v(3)},
+                {icon: '💥', prob: 'ПРОВАЛ', percent: formatPct(1 - winP), val: v(-3)}
+            ];
+        }
+        case 'ticket_2win': {
+            const p1 = 0.02 + luckLvl*0.01 + luckBonus/10;
+            const p2 = 0.15 + luckLvl*0.02 + luckBonus/5;
+            const p3 = 0.40 + luckLvl*0.03 + luckBonus/2;
+            const p4 = 0.60 + luckBonus;
+            return [
+                {icon: '💎', prob: 'ДЖЕКПОТ', percent: formatPct(p1), val: v(250)},
+                {icon: '💰', prob: 'РЕДКО', percent: formatPct(p2 - p1), val: v(75)},
+                {icon: '💵', prob: 'СРЕДНЕ', percent: formatPct(p3 - p2), val: v(25)},
+                {icon: '🍒', prob: 'ЧАСТО', percent: formatPct(p4 - p3), val: v(10)},
+                {icon: '❌', prob: 'ПРОИГРЫШ', percent: formatPct(1 - p4), val: '0₽'}
+            ];
+        }
+        case 'ticket_mini': {
+            const w = Math.min(0.8, 0.45 + luckBonus);
+            return [
+                {icon: '💎', prob: 'ДЖЕКПОТ', percent: formatPct(w * 0.1), val: v(500)},
+                {icon: '💰', prob: 'РЕДКО', percent: formatPct(w * 0.3), val: v(150)},
+                {icon: '💵', prob: 'ЧАСТО', percent: formatPct(w * 0.6), val: v(50)},
+                {icon: '❌', prob: 'ПРОИГРЫШ', percent: formatPct(1 - w), val: '0₽'}
+            ];
+        }
+        case 'ticket_apple': {
+            const worm = Math.max(0.05, 0.20 - luckBonus);
+            return [
+                {icon: '🏆', prob: 'ЯЧЕЙКА', percent: formatPct(0.1), val: v(150)},
+                {icon: '🍎', prob: 'ЯЧЕЙКА', percent: formatPct(0.3), val: v(40)},
+                {icon: '🍏', prob: 'ЯЧЕЙКА', percent: formatPct(0.6 - worm), val: v(15)},
+                {icon: '🐛', prob: 'ЯЧЕЙКА', percent: formatPct(worm), val: v(-20)}
+            ];
+        }
+        case 'ticket_quick': {
+            const w = Math.min(0.8, 0.40 + luckBonus);
+            const b1 = 0.1 + luckBonus/5;
+            const b2 = 0.4 + luckBonus/2;
+            return [
+                {icon: '💵', prob: 'ВЫИГРЫШ', percent: formatPct(w), val: v(25)},
+                {icon: '✖️2', prob: 'БОНУС', percent: formatPct(b1), val: 'x2'},
+                {icon: '➕100', prob: 'БОНУС', percent: formatPct(b2 - b1), val: '+'+v(100)}
+            ];
+        }
+        case 'ticket_cat': {
+            const cat = Math.max(0.02, 0.15 - luckBonus);
+            return [
+                {icon: '🐾', prob: 'ЯЧЕЙКА', percent: formatPct(0.1), val: v(60)},
+                {icon: '🐟', prob: 'ЯЧЕЙКА', percent: formatPct(0.4), val: v(30)},
+                {icon: '🧶', prob: 'ЯЧЕЙКА', percent: formatPct(0.5 - cat), val: v(10)},
+                {icon: '🐱', prob: 'ЯЧЕЙКА', percent: formatPct(cat), val: v(-100)}
+            ];
+        }
+    }
+    return [];
+}
+
+function renderInfoPanel(item) {
+    const t = SHOP_ITEMS[item.templateId];
+    const chances = getTicketChances(item.templateId, item.mult);
+    let html = `
+        <div class="bg-[#362b22] p-4 text-center border-b-4 border-[#2c221a]">
+             <h2 class="text-xl font-black tracking-wider text-white drop-shadow-md">${t.name}</h2>
+             <div class="text-yellow-400 text-xs font-bold mt-1">УР. ${item.level}</div>
+        </div>
+        <div class="p-4 flex-1 overflow-y-auto custom-scrollbar">
+            <p class="text-[10px] text-[#d4c3b3] mb-4 font-medium text-center leading-relaxed">"${t.desc}"</p>
+            <div class="space-y-3">
+    `;
+    chances.forEach(c => {
+        html += `
+            <div class="flex items-center justify-between bg-[#3a3026] p-2 rounded-md border-4 border-[#1f1711] shadow-inner">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-[#2c221a] rounded flex items-center justify-center text-lg border-2 border-[#1f1711]">${c.icon}</div>
+                    <span class="font-bold text-[9px] text-[#d4c3b3] uppercase">${c.prob} <span class="text-blue-300 ml-1">${c.percent}</span></span>
+                </div>
+                <span class="font-black text-sm drop-shadow-md ${c.val.includes('-') ? 'text-red-400' : 'text-green-400'}">${c.val}</span>
+            </div>
+        `;
+    });
+    html += `
+            </div>
+            <div class="mt-4 p-2 bg-[#2c221a] rounded-md border-4 border-[#1f1711] text-center shadow-inner">
+               <div class="text-[8px] text-yellow-500 font-bold uppercase tracking-wider mb-1">МНОЖИТЕЛЬ</div>
+               <div class="text-lg font-black text-yellow-400">x${item.mult.toFixed(2)}</div>
+            </div>
+        </div>
+    `;
+    document.getElementById('scratch-info-panel').innerHTML = html;
+}
+
+function checkJackpot(payout, item) {
+    let isJackpot = false;
+    if (item.templateId === 'ticket_2win' && payout >= Math.floor(SYMBOLS.DIAMOND.value * item.mult)) isJackpot = true;
+    if (item.templateId === 'ticket_apple' && payout >= Math.floor(SYMBOLS.APPLE_Y.value * item.mult)) isJackpot = true;
+    if (item.templateId === 'ticket_mini' && payout >= Math.floor(SYMBOLS.DIAMOND.value * 2 * item.mult)) isJackpot = true;
+    if (payout >= 200 * item.mult) isJackpot = true;
+
+    if (isJackpot) {
+        playSound('jackpot');
+        const jp = document.getElementById('ui-jackpot');
+        jp.classList.remove('hidden');
+        jp.classList.add('flex');
+        setTimeout(() => {
+            jp.classList.add('hidden');
+            jp.classList.remove('flex');
+        }, 3000);
+    }
+}
+
+// --- СКРЕТЧ МОДАЛКА ---
+let scratchCtx, scratchAreas, scratchRevealed, scratchCompleted, scratchIsDrawing;
+
+function openScratchModal(item, autoReveal = false) {
+    state.activeScratchItem = item;
+    elScratchModal.classList.remove('hidden');
+    elScratchModal.classList.add('flex');
+    scratchCompleted = false;
+    
+    renderInfoPanel(item);
+
+    const bg = document.getElementById('scratch-bg');
+    bg.innerHTML = getScratchContentHTML(item);
+    
+    const payoutEl = document.getElementById('scratch-current-payout');
+    payoutEl.innerText = '0₽';
+    payoutEl.className = 'text-4xl font-black text-white transition-colors drop-shadow-md';
+    
+    const overlay = document.getElementById('scratch-result-overlay');
+    overlay.classList.add('hidden');
+    
+    const canvas = document.getElementById('scratch-canvas');
+    canvas.classList.remove('opacity-0');
+    canvas.style.cursor = item.templateId === 'plate' ? 'crosshair' : 'pointer';
+
+    scratchAreas = getScratchAreas(item.templateId);
+    scratchRevealed = new Array(scratchAreas.length).fill(false);
+    
+    if (autoReveal) {
+        scratchRevealed.fill(true);
+        canvas.classList.add('opacity-0');
+        const newPayout = calcCurrentPayout(scratchRevealed);
+        
+        overlay.classList.remove('hidden');
+        overlay.classList.add('animate-bounce');
+        
+        if (item.result.win) {
+             playSound('win');
+             overlay.innerHTML = `<span class="bg-green-500 text-white px-8 py-4 rounded-md font-black text-4xl shadow-[4px_4px_0_rgba(0,0,0,1)] border-4 border-green-200">+${newPayout}₽!</span>`;
+             checkJackpot(newPayout, item);
+        } else {
+             playSound('lose');
+             overlay.innerHTML = `<span class="bg-red-500 text-white px-8 py-3 rounded-md font-bold text-2xl shadow-[4px_4px_0_rgba(0,0,0,1)] border-4 border-red-300">${newPayout < 0 ? newPayout + '₽' : 'НЕТ ВЫИГРЫША'}</span>`;
+        }
+        
+        payoutEl.innerText = (newPayout > 0 ? '+' : '') + newPayout + '₽';
+        payoutEl.className = `text-4xl font-black transition-colors drop-shadow-md ${newPayout < 0 ? 'text-red-500' : newPayout > 0 ? 'text-green-500' : 'text-white'}`;
+        
+        scratchCompleted = true;
+        
+        setTimeout(() => {
+            state.money += newPayout;
+            state.scratchedCount++;
+            state.ticketExp[item.templateId] = (state.ticketExp[item.templateId] || 0) + 1; 
+            saveGame(); 
+            renderStats();
+            renderShop(); 
+            closeScratchModal();
+        }, 2000);
+    } else {
+        initCanvas();
+    }
+}
+
+function closeScratchModal() {
+    elScratchModal.classList.add('hidden');
+    elScratchModal.classList.remove('flex');
+    state.activeScratchItem = null;
+}
+
+function getScratchAreas(templateId) {
+    const w = 450, h = 400;
+    switch(templateId) {
+      case 'plate': return [{ type: 'circle', x: w/2, y: h/2, r: 180 }];
+      case 'ticket_2win': return [{ type: 'rect', x: 50, y: 250, w: 90, h: 90, rx: 0 }, { type: 'rect', x: 180, y: 250, w: 90, h: 90, rx: 0 }, { type: 'rect', x: 310, y: 250, w: 90, h: 90, rx: 0 }];
+      case 'ticket_mini': return [{ type: 'circle', x: 100, y: 150, r: 40 }, { type: 'circle', x: 225, y: 150, r: 40 }, { type: 'circle', x: 350, y: 150, r: 40 }, { type: 'circle', x: 160, y: 260, r: 40 }, { type: 'circle', x: 290, y: 260, r: 40 }];
+      case 'ticket_apple': return [{ type: 'circle', x: 225, y: 100, r: 35 }, { type: 'circle', x: 120, y: 170, r: 35 }, { type: 'circle', x: 330, y: 170, r: 35 }, { type: 'circle', x: 160, y: 270, r: 35 }, { type: 'circle', x: 290, y: 270, r: 35 }];
+      case 'ticket_quick': return [{ type: 'rect', x: 40, y: 120, w: 80, h: 80, rx: 0 }, { type: 'rect', x: 140, y: 120, w: 80, h: 80, rx: 0 }, { type: 'rect', x: 240, y: 120, w: 80, h: 80, rx: 0 }, { type: 'rect', x: 40, y: 220, w: 80, h: 80, rx: 0 }, { type: 'rect', x: 140, y: 220, w: 80, h: 80, rx: 0 }, { type: 'rect', x: 240, y: 220, w: 80, h: 80, rx: 0 }, { type: 'circle', x: 380, y: 210, r: 45 }];
+      case 'ticket_cat': return [{ type: 'circle', x: 120, y: 100, r: 30 }, { type: 'circle', x: 225, y: 70, r: 30 }, { type: 'circle', x: 330, y: 100, r: 30 }, { type: 'circle', x: 80, y: 200, r: 30 }, { type: 'circle', x: 225, y: 240, r: 80 }];
+      default: return [];
+    }
+}
+
+function getScratchContentHTML(item) {
+    const res = item.result;
+    switch(item.templateId) {
+      case 'ticket_2win':
+        return `<div class="w-full h-full bg-[#5e8c79] relative shadow-inner">
+            <div class="absolute inset-0 border-8 border-[#3e6354] pointer-events-none z-30"></div>
+            <div class="absolute top-6 w-full text-center font-black text-[#f4ecd8] text-4xl drop-shadow-md tracking-widest">TWO $ WIN</div>
+            <div class="absolute top-24 left-6 right-6 h-32 bg-[#a3c2b0] border-4 border-[#3e6354] overflow-hidden shadow-inner">
+               <div class="absolute bottom-0 left-0 w-full h-24 bg-[#7da891]" style="clip-path: polygon(0 100%, 30% 0, 70% 100%)"></div>
+               <div class="absolute bottom-0 right-0 w-2/3 h-32 bg-[#5e8c79]" style="clip-path: polygon(20% 100%, 60% 0, 100% 100%)"></div>
+            </div>
+            ${res.symbols.map((s, i) => `<div class="absolute w-[90px] h-[90px] bg-[#d8e6df] border-4 border-[#3e6354] flex items-center justify-center text-5xl shadow-inner" style="left: ${50 + i*130}px; top: 250px;">${s}</div>`).join('')}
+          </div>`;
+      case 'ticket_mini':
+        return `<div class="w-full h-full bg-[#4287f5] relative shadow-inner">
+            <div class="absolute inset-0 border-8 border-[#1e4fa8] pointer-events-none z-30"></div>
+            <div class="absolute top-8 w-full text-center font-black text-white text-4xl drop-shadow-md rotate-[-2deg]">MINI SCRATCH</div>
+            ${res.symbols.map((s, i) => {
+                 const pos = [{x:100,y:150},{x:225,y:150},{x:350,y:150},{x:160,y:260},{x:290,y:260}][i];
+                 return `<div class="absolute w-20 h-20 bg-white rounded-full border-4 border-[#1e4fa8] flex items-center justify-center text-4xl shadow-inner" style="left: ${pos.x-40}px; top: ${pos.y-40}px">${s}</div>`;
+              }).join('')}
+          </div>`;
+      case 'ticket_apple':
+        return `<div class="w-full h-full bg-[#87ceeb] relative overflow-hidden shadow-inner">
+            <div class="absolute inset-0 border-8 border-[#2a7a2a] pointer-events-none z-30"></div>
+            <div class="absolute bottom-0 w-full h-32 bg-[#8b4513] border-t-8 border-[#5c2a0c]"></div>
+            <div class="absolute bottom-20 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#2a7a2a] rounded-full border-8 border-[#1e5c1e] shadow-inner"></div>
+            <div class="absolute top-6 w-full text-center font-black text-white text-3xl drop-shadow-md z-10 tracking-widest">APPLE TREE</div>
+            ${res.symbols.map((s, i) => {
+                 const pos = [{x:225,y:100},{x:120,y:170},{x:330,y:170},{x:160,y:270},{x:290,y:270}][i];
+                 return `<div class="absolute w-[70px] h-[70px] bg-white rounded-full flex items-center justify-center text-4xl border-4 border-[#1e5c1e] shadow-inner z-10" style="left: ${pos.x-35}px; top: ${pos.y-35}px">${s}</div>`;
+            }).join('')}
+          </div>`;
+      case 'ticket_quick':
+        return `<div class="w-full h-full bg-[#b88c35] relative shadow-inner">
+             <div class="absolute inset-0 border-8 border-[#7a5c21] pointer-events-none z-30"></div>
+             <div class="absolute top-6 w-full text-center font-black text-white text-4xl drop-shadow-md">QUICK CASH</div>
+             ${res.symbols.map((s, i) => {
+                const cols = i % 3; const rows = Math.floor(i / 3);
+                return `<div class="absolute w-[80px] h-[80px] bg-[#fff] border-4 border-[#7a5c21] flex items-center justify-center text-4xl shadow-inner" style="left: ${40 + cols*100}px; top: ${120 + rows*100}px">${s}</div>`
+             }).join('')}
+             <div class="absolute w-[110px] h-[180px] bg-[#7a5c21] border-4 border-[#5c4518] flex flex-col items-center justify-start pt-2 text-center text-white font-bold shadow-inner" style="left: 325px; top: 120px;">БОНУС!</div>
+             <div class="absolute w-[90px] h-[90px] bg-white rounded-full flex items-center justify-center text-3xl text-black border-4 border-[#b88c35] shadow-inner z-10" style="left: 335px; top: 165px;">${res.bonus}</div>
+          </div>`;
+      case 'ticket_cat':
+        return `<div class="w-full h-full bg-[#f4aeba] relative shadow-inner">
+            <div class="absolute inset-0 border-8 border-[#91465e] pointer-events-none z-30"></div>
+            <div class="absolute top-4 left-4 font-black text-[#91465e] text-3xl w-24 leading-none drop-shadow-md">LUCKY CAT</div>
+            ${res.symbols.map((s, i) => {
+                 const pos = [{x:120,y:100,r:30},{x:225,y:70,r:30},{x:330,y:100,r:30},{x:80,y:200,r:30},{x:225,y:240,r:80}][i];
+                 return `<div class="absolute bg-[#fff] rounded-full flex items-center justify-center border-4 border-[#91465e] shadow-inner" style="left: ${pos.x-pos.r}px; top: ${pos.y-pos.r}px; width: ${pos.r*2}px; height: ${pos.r*2}px; font-size: ${pos.r>50?'60px':'30px'}">${s}</div>`;
+            }).join('')}
+          </div>`;
+      default:
+        return `<div class="w-full h-full bg-[#a0aec0] rounded-full relative overflow-hidden shadow-inner">
+             <div class="absolute inset-0 border-[20px] border-[#718096] rounded-full pointer-events-none z-30"></div>
+             <div class="absolute inset-0 border-[8px] border-dashed border-[#4a5568] rounded-full opacity-30 m-4"></div>
+             <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center drop-shadow-md w-full flex flex-col items-center">
+                <div class="text-6xl mb-2">${res.win ? '✨' : '💥'}</div>
+                <div class="text-5xl font-black ${res.win ? 'text-green-400' : 'text-red-600'}">${res.payout}₽</div>
+             </div>
+          </div>`;
+    }
+}
+
+function initCanvas() {
+    const canvas = document.getElementById('scratch-canvas');
+    scratchCtx = canvas.getContext('2d', { willReadFrequently: true });
+    scratchCtx.clearRect(0, 0, 450, 400);
+    scratchCtx.globalCompositeOperation = 'source-over';
+    
+    if (state.activeScratchItem.templateId === 'plate') {
+      scratchCtx.fillStyle = '#f7d2b7'; scratchCtx.beginPath(); scratchCtx.arc(225, 200, 180, 0, Math.PI*2); scratchCtx.fill();
+      scratchCtx.fillStyle = '#e6bc9a';
+      for(let i=0; i<40; i++) { scratchCtx.beginPath(); scratchCtx.arc(50 + Math.random()*350, 50 + Math.random()*300, 15 + Math.random()*25, 0, Math.PI*2); scratchCtx.fill(); }
+    } else {
+      scratchAreas.forEach(area => {
+        scratchCtx.fillStyle = '#a0aec0';
+        if (area.type === 'rect') {
+          if (area.rx) { scratchCtx.beginPath(); scratchCtx.roundRect(area.x, area.y, area.w, area.h, area.rx); scratchCtx.fill(); } 
+          else { scratchCtx.fillRect(area.x, area.y, area.w, area.h); }
+        } else if (area.type === 'circle') {
+          scratchCtx.beginPath(); scratchCtx.arc(area.x, area.y, area.r, 0, Math.PI*2); scratchCtx.fill();
+        }
+        scratchCtx.fillStyle = '#718096';
+        if (area.type === 'rect') {
+           scratchCtx.font = 'bold 40px "Pixelify Sans"'; scratchCtx.textAlign = 'center'; scratchCtx.textBaseline = 'middle'; scratchCtx.fillText('?', area.x + area.w/2, area.y + area.h/2);
+        } else {
+           scratchCtx.font = 'bold ' + (area.r > 50 ? '60px' : '30px') + ' "Pixelify Sans"'; scratchCtx.textAlign = 'center'; scratchCtx.textBaseline = 'middle'; scratchCtx.fillText('?', area.x, area.y);
+        }
+      });
+    }
+}
+
+function handleScratchStart(e) { scratchIsDrawing = true; startScratchSound(); handleScratchMove(e); }
+function handleScratchEnd(e) { scratchIsDrawing = false; stopScratchSound(); }
+
+function handleScratchMove(e) {
+    if (!scratchIsDrawing || scratchCompleted) return;
+    
+    const canvas = document.getElementById('scratch-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = (cx - rect.left) * (canvas.width / rect.width);
+    const y = (cy - rect.top) * (canvas.height / rect.height);
+
+    scratchCtx.globalCompositeOperation = 'destination-out';
+    scratchCtx.beginPath();
+    
+    // РАЗМЕР СТИРАНИЯ
+    const baseR = state.activeScratchItem.templateId === 'plate' ? 30 : 15;
+    const currentR = baseR + (state.upgrades.scratch_size.level * 5);
+    scratchCtx.arc(x, y, currentR, 0, Math.PI * 2);
+
+    // СИЛА СТИРАНИЯ (Прозрачность кисти)
+    const strength = 0.2 + (state.upgrades.scratch_strength.level * 0.16);
+    scratchCtx.globalAlpha = Math.min(1, strength);
+
+    scratchCtx.fill();
+    scratchCtx.globalAlpha = 1.0;
+
+    if (Math.random() < 0.2) checkClearance();
+}
+
+function calcCurrentPayout(rev) {
+    const item = state.activeScratchItem;
+    if (item.templateId === 'plate') return rev[0] ? item.result.payout : 0;
+    
+    const syms = item.result.symbols;
+    const getValue = (icon) => {
+        const base = Object.values(SYMBOLS).find(s => s.icon === icon)?.value || 0;
+        return typeof base === 'number' ? Math.floor(base * item.mult) : base;
+    };
+
+    if (item.templateId === 'ticket_apple' || item.templateId === 'ticket_cat') {
+      let total = 0; rev.forEach((isRev, i) => { if (isRev) total += getValue(syms[i]); });
+      return total;
+    }
+    if (item.templateId === 'ticket_2win') {
+      const counts = {};
+      for(let i=0; i<3; i++) {
+         if (rev[i]) { counts[syms[i]] = (counts[syms[i]] || 0) + 1; if (counts[syms[i]] >= 2) return getValue(syms[i]); }
+      }
+      return 0;
+    }
+    if (item.templateId === 'ticket_mini') {
+      const counts = {};
+      for(let i=0; i<5; i++) {
+         if (rev[i]) { counts[syms[i]] = (counts[syms[i]] || 0) + 1; if (counts[syms[i]] >= 3) return getValue(syms[i]) * 2; }
+      }
+      return 0;
+    }
+    if (item.templateId === 'ticket_quick') {
+      const counts = {}; let base = 0;
+      for(let i=0; i<6; i++) {
+         if (rev[i]) { counts[syms[i]] = (counts[syms[i]] || 0) + 1; if (counts[syms[i]] >= 3) base = getValue(syms[i]); }
+      }
+      if (base > 0 && rev[6]) { 
+         const bonusIcon = item.result.bonus;
+         if (bonusIcon === SYMBOLS.BONUS_X2.icon) return base * 2;
+         if (bonusIcon === SYMBOLS.BONUS_PLUS.icon) return base + Math.floor(SYMBOLS.BONUS_PLUS.value * item.mult);
+      }
+      return base;
+    }
+    return 0;
+}
+
+function checkClearance() {
+    const imgData = scratchCtx.getImageData(0, 0, 450, 400).data;
+    let newlyRevealed = false;
+
+    scratchAreas.forEach((a, i) => {
+      if (scratchRevealed[i]) return;
+      let sx, sy, sw, sh;
+      if (a.type === 'rect') { sx=a.x; sy=a.y; sw=a.w; sh=a.h; } else { sx=a.x-a.r; sy=a.y-a.r; sw=a.r*2; sh=a.r*2; }
+      
+      sx = Math.max(0, Math.floor(sx)); sy = Math.max(0, Math.floor(sy));
+      sw = Math.min(450 - sx, Math.floor(sw)); sh = Math.min(400 - sy, Math.floor(sh));
+
+      let remainingOpaque = 0; let pixelsChecked = 0;
+      for (let y = sy; y < sy + sh; y += 4) {
+        for (let x = sx; x < sx + sw; x += 4) {
+          const alphaIdx = (y * 450 + x) * 4 + 3;
+          if (imgData[alphaIdx] > 128) remainingOpaque++;
+          pixelsChecked++;
+        }
+      }
+      
+      if ((100 - ((remainingOpaque / pixelsChecked) * 100)) > 60) {
+          scratchRevealed[i] = true;
+          newlyRevealed = true;
+      }
+    });
+
+    if (newlyRevealed) {
+       const newPayout = calcCurrentPayout(scratchRevealed);
+       const payoutEl = document.getElementById('scratch-current-payout');
+       payoutEl.innerText = (newPayout > 0 ? '+' : '') + newPayout + '₽';
+       payoutEl.className = `text-4xl font-black transition-colors drop-shadow-md ${newPayout < 0 ? 'text-red-500' : newPayout > 0 ? 'text-green-500' : 'text-white'}`;
+       
+       if (scratchRevealed.every(r => r) && !scratchCompleted) {
+          scratchCompleted = true;
+          stopScratchSound();
+          document.getElementById('scratch-canvas').classList.add('opacity-0');
+          
+          if(state.activeScratchItem.templateId !== 'plate') {
+              const overlay = document.getElementById('scratch-result-overlay');
+              overlay.classList.remove('hidden');
+              overlay.classList.add('animate-bounce');
+              
+              if(state.activeScratchItem.result.win) {
+                 playSound('win');
+                 overlay.innerHTML = `<span class="bg-green-500 text-white px-8 py-4 rounded-md font-black text-4xl shadow-[4px_4px_0_rgba(0,0,0,1)] border-4 border-green-200">+${newPayout}₽!</span>`;
+                 checkJackpot(newPayout, state.activeScratchItem);
+              } else {
+                 playSound('lose');
+                 overlay.innerHTML = `<span class="bg-red-500 text-white px-8 py-3 rounded-md font-bold text-2xl shadow-[4px_4px_0_rgba(0,0,0,1)] border-4 border-red-300">${newPayout < 0 ? newPayout + '₽' : 'НЕТ ВЫИГРЫША'}</span>`;
+              }
+          } else {
+              if (state.activeScratchItem.result.win) playSound('win');
+              else playSound('lose');
+          }
+
+          setTimeout(() => {
+             const finishedUid = state.activeScratchItem.uid;
+             
+             state.money += newPayout;
+             state.scratchedCount++;
+             state.ticketExp[state.activeScratchItem.templateId] = (state.ticketExp[state.activeScratchItem.templateId] || 0) + 1; 
+             saveGame(); 
+             renderStats();
+             renderShop(); 
+             closeScratchModal();
+             
+             setTimeout(() => {
+                 state.itemsOnTable = state.itemsOnTable.filter(it => it.uid !== finishedUid);
+                 renderTableItems();
+             }, 1500);
+
+          }, 1500);
+       }
+    }
+}
+
+// Запуск
+window.onload = init;
+</script>
+</body>
+</html>
