@@ -535,7 +535,10 @@
     <div class="menu-title">С ДНЕМ РОЖДЕНИЯ<br>ЛЮБИМАЯ!</div>
     <div class="menu-subtitle">ИГРОВОЙ ПОДАРОК</div>
     
-    <button class="menu-btn" onclick="startGameFromMenu()">ИГРАТЬ</button>
+    <button class="menu-btn" id="btn-play" onclick="startGameFromMenu()" style="display: none;">ИГРАТЬ</button>
+    
+    <button class="menu-btn" id="btn-tutorial" onclick="startTutorial()">ОБУЧЕНИЕ</button>
+    
     <button class="menu-btn" onclick="openSettings()">НАСТРОЙКИ</button>
     <button class="menu-btn" onclick="exitGame()">ВЫХОД</button>
 
@@ -756,6 +759,42 @@ const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 const REPUTATION_PENALTY_PER_SUSPICION = 25;
 
+window.startTutorial = function() {
+    playUIClick(); // Звук клика
+    window.open('test.html', '_blank'); // Открываем вкладку с обучением
+
+    const btnTutorial = document.getElementById('btn-tutorial');
+    const btnPlay = document.getElementById('btn-play');
+
+    // Визуально "выключаем" кнопку обучения, чтобы её не кликали спамом
+    btnTutorial.style.pointerEvents = 'none';
+    btnTutorial.style.opacity = '0.6';
+
+    let timeLeft = 60; // 60 секунд
+    btnTutorial.innerText = `ЖДИТЕ (${timeLeft}с)`;
+
+    // Запускаем таймер, который срабатывает каждую секунду (1000 мс)
+    const timer = setInterval(() => {
+        timeLeft--;
+        
+        if (timeLeft > 0) {
+            // Обновляем текст с обратным отсчетом
+            btnTutorial.innerText = `ЖДИТЕ (${timeLeft}с)`;
+        } else {
+            // Когда время вышло: останавливаем таймер
+            clearInterval(timer);
+            
+            // Возвращаем кнопку обучения в нормальный вид
+            btnTutorial.innerText = "ОБУЧЕНИЕ";
+            btnTutorial.style.pointerEvents = 'auto';
+            btnTutorial.style.opacity = '1';
+            
+            // Показываем кнопку ИГРАТЬ
+            btnPlay.style.display = 'block';
+        }
+    }, 1000);
+}
+    
 // --- STATE ---
 let scene, menuScene, camera, renderer, clock, player;
 let yaw = 0, pitch = 0;
