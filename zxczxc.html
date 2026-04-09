@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Левитирующий альбом ✨</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{--p1:#ffd6e7;--p2:#ffb3d1;--p3:#ff85b3;--li:#c9b1ff;--li2:#a78bfa;}
+html,body{
+  width:100%;height:100%;overflow:hidden;background:#0e0516;
+  font-family:'Lato',sans-serif;user-select:none;
+  -webkit-user-select:none;position:fixed;
+}
+
+/* ── ROTATE OVERLAY ── */
+#rotGate{
+  position:fixed;inset:0;z-index:9999;
+  background:radial-gradient(ellipse at 50% 55%,#2d0a3e,#080110);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.8rem;
+  transition:opacity .5s;
+}
+#rotGate.hidden{opacity:0;pointer-events:none;}
+.rot-icon{font-size:4.5rem;animation:rotAnim 2.8s ease-in-out infinite;}
+@keyframes rotAnim{0%,100%{transform:rotate(0deg)}45%,55%{transform:rotate(90deg) scale(1.08)}}
+.rot-txt{
+  font-family:'Playfair Display',serif;color:var(--p1);
+  font-size:1.15rem;text-align:center;line-height:1.85;padding:0 2.5rem;
+  text-shadow:0 0 22px var(--p3);letter-spacing:.04em;
+}
+
+/* ── STARS ── */
+#c{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+
+/* ── NEBULAE ── */
+.neb{position:fixed;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0;}
+.n1{width:55vmax;height:55vmax;background:radial-gradient(circle,#b0336622,transparent 70%);top:-15%;left:-15%;}
+.n2{width:60vmax;height:45vmax;background:radial-gradient(circle,#6d28d918,transparent 70%);bottom:-12%;right:-12%;}
+.n3{width:40vmax;height:40vmax;background:radial-gradient(circle,#ff85b314,transparent 70%);top:40%;left:50%;transform:translate(-50%,-50%);}
+
+/* ── INTRO ── */
+#intro{
+  position:fixed;inset:0;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 55%,#2a0840,#080110);
+  transition:opacity .9s,transform .9s;
+}
+#intro.gone{opacity:0;pointer-events:none;transform:scale(1.07);}
+.i-title{
+  font-family:'Playfair Display',serif;
+  font-size:clamp(1.8rem,5vw,3rem);color:var(--p1);
+  text-align:center;padding:0 1.4rem;margin-bottom:.6rem;
+  animation:glow 3s ease-in-out infinite;
+}
+@keyframes glow{0%,100%{text-shadow:0 0 35px var(--p3),0 0 70px #ff4fa340;}50%{text-shadow:0 0 58px var(--p3),0 0 120px #ff4fa360;}}
+.i-sub{font-size:.7rem;letter-spacing:.28em;color:var(--li);opacity:.72;margin-bottom:2.8rem;}
+.i-btn{
+  padding:13px 42px;border:none;border-radius:50px;
+  background:linear-gradient(135deg,var(--p3),var(--li2));
+  color:#fff;font-size:.9rem;font-family:'Lato',sans-serif;
+  letter-spacing:.16em;cursor:pointer;
+  box-shadow:0 8px 30px #ff85b36a;
+  animation:breathe 2.8s ease-in-out infinite;transition:transform .15s;
+}
+.i-btn:active{transform:scale(.94);}
+@keyframes breathe{0%,100%{box-shadow:0 8px 30px #ff85b36a;}50%{box-shadow:0 12px 46px #ff85b3a0,0 0 0 8px #ff85b30e;}}
+
+/* ── SCENE ── */
+#scene{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  perspective:1600px;z-index:1;opacity:0;transition:opacity .9s ease .2s;
+  pointer-events:none;
+}
+#scene.visible{opacity:1;pointer-events:auto;}
+
+/* ── BOOK WRAP ── */
+#bw{
+  transform-style:preserve-3d;position:relative;will-change:transform;
+  animation: levitateSoft 4.2s ease-in-out infinite;
+  pointer-events:none;
+}
+#book{
+  pointer-events:auto;
+}
+
+@keyframes levitateSoft {
+  0% { transform: translateY(0px) rotateX(2deg); }
+  50% { transform: translateY(-14px) rotateX(0deg); }
+  100% { transform: translateY(0px) rotateX(2deg); }
+}
+
+/* Тень */
+#shad{
+  position:absolute;bottom:-18px;left:50%;
+  width:80%;height:18px;
+  background:radial-gradient(ellipse,#ff85b360,transparent 70%);
+  border-radius:50%;
+  animation: shadLev 4.2s ease-in-out infinite;
+  pointer-events:none;z-index:-1;filter:blur(4px);
+}
+@keyframes shadLev {
+  0% { transform: translateX(-50%) scaleX(1); opacity:0.6; }
+  50% { transform: translateX(-50%) scaleX(0.85); opacity:0.3; bottom:-24px; }
+  100% { transform: translateX(-50%) scaleX(1); opacity:0.6; }
+}
+
+/* ── BOOK ── */
+#book{
+  width:clamp(230px,42vh,370px);
+  height:clamp(305px,58vh,490px);
+  position:relative;transform-style:preserve-3d;
+  filter: drop-shadow(0 15px 15px rgba(0,0,0,0.25));
+}
+
+#spine{
+  position:absolute;left:0;top:0;bottom:0;width:16px;
+  background:linear-gradient(90deg,#14021e,#4a1268 50%,#14021e);
+  border-radius:3px 0 0 3px;
+  box-shadow:inset -2px 0 8px #0007,2px 0 5px #00000066;
+  z-index:40;pointer-events:none;
+}
+
+/* ── PAGES (реалистичный поворот) ── */
+.page{
+  position:absolute;inset:0;
+  transform-style:preserve-3d;
+  transform-origin:left center;
+  transition:transform .6s cubic-bezier(.4,0,.2,1);
+  will-change:transform;
+}
+.page.flipped{transform:rotateY(-180deg);}
+
+.pf,.pb{
+  position:absolute;inset:0;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  overflow:hidden;
+}
+.pf{
+  border-radius:2px 10px 10px 2px;
+  transform:translateZ(1px);
+}
+.pb{
+  transform:rotateY(180deg) translateZ(1px);
+  border-radius:10px 2px 2px 10px;
+}
+
+/* Обложка */
+.cvr{
+  width:100%;height:100%;
+  background:#1c0230;
+  background-image:radial-gradient(ellipse at 32% 32%,#481262,#1c0230 56%,#0f0118 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:1.6rem 1.2rem;position:relative;
+}
+.cvr::before{
+  content:'';position:absolute;inset:8px;
+  border:1px solid #ff85b336;border-radius:0 7px 7px 0;pointer-events:none;
+}
+.cvr-b::before{border-radius:7px 0 0 7px;}
+.c-em{font-size:2.6rem;margin-bottom:.7rem;animation:rock 5s ease-in-out infinite;}
+@keyframes rock{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg) scale(1.09)}}
+.c-t{
+  font-family:'Playfair Display',serif;font-size:clamp(.9rem,2.2vw,1.4rem);
+  color:var(--p1);text-align:center;text-shadow:0 0 18px var(--p3);margin-bottom:.3rem;
+}
+.c-s{font-size:.58rem;letter-spacing:.22em;color:var(--li);opacity:.68;}
+
+/* Внутренние страницы */
+.inn{
+  background:#fdf4fa;
+  width:100%;height:100%;
+  padding:10px 13px;
+  display:flex;flex-direction:column;gap:5px;
+  position:relative;
+}
+.inn::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 23px,#ffb3d112 23px,#ffb3d112 24px);
+  opacity:.5;
+}
+
+.ps{
+  background:#edd5e5;border-radius:4px;border:1.5px solid #d898bc;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;flex-shrink:0;
+  box-shadow:0 2px 7px #c0448810;min-height:0;
+}
+.ps::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,#ffffff1c,transparent 55%);
+  pointer-events:none;z-index:2;
+}
+.ph{font-size:clamp(1rem,2.5vw,1.7rem);opacity:.22;position:relative;z-index:1;}
+
+/* Скотч */
+.tp{
+  position:absolute;width:20px;height:9px;
+  background:linear-gradient(135deg,#ffd6e7b4,#ffb3d1b4);
+  border-radius:2px;opacity:.85;z-index:3;
+}
+.tl{top:-4px;left:4px;transform:rotate(-28deg);}
+.tr{top:-4px;right:4px;transform:rotate(28deg);}
+.bl{bottom:-4px;left:4px;transform:rotate(28deg);}
+.br{bottom:-4px;right:4px;transform:rotate(-28deg);}
+
+.cap{
+  font-family:'Playfair Display',serif;font-style:italic;
+  font-size:.62rem;color:#c0448888;text-align:center;
+  flex-shrink:0;position:relative;z-index:1;
+}
+.stk{position:absolute;font-size:1.15rem;pointer-events:none;z-index:4;}
+.row{display:flex;gap:5px;flex-shrink:0;}
+
+/* Индикатор страниц */
+.page-indicator{
+  position:fixed;bottom:25px;left:50%;transform:translateX(-50%);
+  display:flex;gap:10px;z-index:10;
+}
+.dot{
+  width:7px;height:7px;border-radius:50%;
+  background:rgba(255,200,220,.4);
+  transition:all .3s;
+}
+.dot.active{
+  width:22px;border-radius:10px;
+  background:var(--p2);box-shadow:0 0 15px var(--p3);
+}
+</style>
+</head>
+<body>
+
+<div id="rotGate">
+  <div class="rot-icon">📱</div>
+  <div class="rot-txt">Переверни телефон<br>горизонтально 🌸</div>
+</div>
+
+<div class="neb n1"></div>
+<div class="neb n2"></div>
+<div class="neb n3"></div>
+<canvas id="c"></canvas>
+
+<div id="intro">
+  <div class="i-title">Наш альбом ✨</div>
+  <div class="i-sub">листай и вспоминай</div>
+  <button class="i-btn" id="openBtn">Открыть</button>
+</div>
+
+<div id="scene">
+  <div id="bw">
+    <div id="shad"></div>
+    <div id="book">
+      <div id="spine"></div>
+
+      <!-- ОБЛОЖКА (page 0) -->
+      <div class="page" id="p0" style="z-index:40">
+        <div class="pf cvr">
+          <div class="c-em">🌸</div>
+          <div class="c-t">Наш маленький мир</div>
+          <div class="c-s">альбом воспоминаний</div>
+        </div>
+        <div class="pb inn">
+          <div class="ps" style="flex:1.5">
+            <div class="tp tl"></div><div class="tp tr"></div>
+            <div class="tp bl"></div><div class="tp br"></div>
+            <span class="ph">📷</span>
+          </div>
+          <div class="cap">первая встреча ♡</div>
+          <div class="ps" style="height:27%">
+            <div class="tp tl"></div><div class="tp tr"></div>
+            <span class="ph" style="font-size:.9rem">📷</span>
+          </div>
+          <div class="cap">и сразу улыбки</div>
+          <div class="stk" style="top:7px;right:9px">🌷</div>
+        </div>
+      </div>
+
+      <!-- PAGE 1 -->
+      <div class="page" id="p1" style="z-index:39">
+        <div class="pf inn">
+          <div class="ps" style="flex:1">
+            <div class="tp tl"></div><div class="tp tr"></div>
+            <div class="tp bl"></div><div class="tp br"></div>
+            <span class="ph">📷</span>
+          </div>
+          <div class="cap">наш любимый кафе ☕</div>
+          <div class="row" style="height:26%">
+            <div class="ps" style="flex:1;height:100%"><span class="ph" style="font-size:.85rem">📷</span></div>
+            <div class="ps" style="flex:1;height:100%"><span class="ph" style="font-size:.85rem">📷</span></div>
+          </div>
+          <div class="cap">детали того дня</div>
+          <div class="stk" style="bottom:16px;left:7px">✨</div>
+        </div>
+        <div class="pb inn">
+          <div class="ps" style="flex:1.3">
+            <div class="tp tl"></div><div class="tp tr"></div>
+            <div class="tp bl"></div><div class="tp br"></div>
+            <span class="ph">📷</span>
+          </div>
+          <div class="cap">прогулка под дождём ☂️</div>
+          <div class="ps" style="height:27%">
+            <span class="ph" style="font-size:.85rem">📷</span>
+          </div>
+          <div class="cap">и всё равно смеялись</div>
+          <div class="stk" style="top:7px;right:8px">🌧️</div>
+        </div>
+      </div>
+
+      <!-- PAGE 2 -->
+      <div class="page" id="p2" style="z-index:38">
+        <div class="pf inn">
+          <div class="ps" style="flex:1.2">
+            <div class="tp tl"></div><div class="tp tr"></div>
+            <span class="ph">📷</span>
+          </div>
+          <div class="cap">закат на мосту 🌅</div>
+          <div class="ps" style="flex:1">
+            <div class="tp bl"></div><div class="tp br"></div>
+            <span class="ph">📷</span>
+          </div>
+          <div class="cap">мороженое и вечер</div>
+          <div class="stk" style="top:7px;right:6px">🍦</div>
+        </div>
+        <div class="pb inn">
+          <div class="row" style="flex:1">
+            <div class="ps" style="flex:1;height:100%">
+              <div class="tp tl"></div><span class="ph" style="font-size:.9rem">📷</span>
+            </div>
+            <div class="ps" style="flex:1;height:100%">
+              <div class="tp tr"></div><span class="ph" style="font-size:.9rem">📷</span>
+            </div>
+          </div>
+          <div class="cap">вместе — это лучше</div>
+          <div class="ps" style="flex:1.3">
+            <div class="tp bl"></div><div class="tp br"></div>
+            <span class="ph">📷</span>
+          </div>
+          <div class="cap">любимые места 💕</div>
+          <div class="stk" style="top:5px;right:6px">🗺️</div>
+        </div>
+      </div>
+
+      <!-- PAGE 3 (задняя обложка) -->
+      <div class="page" id="p3" style="z-index:37">
+        <div class="pf inn">
+          <div class="ps" style="flex:1">
+            <div class="tp tl"></div><div class="tp tr"></div>
+            <div class="tp bl"></div><div class="tp br"></div>
+            <span class="ph">📷</span>
+          </div>
+          <div class="cap">самая любимая ♡</div>
+          <div style="text-align:center;font-family:'Playfair Display',serif;font-style:italic;font-size:.68rem;color:#c04488a0;line-height:1.75;position:relative;z-index:1;flex-shrink:0;margin-top:3px">
+            «некоторые моменты<br>стоит хранить вечно»
+          </div>
+          <div class="stk" style="bottom:12px;right:7px">🌹</div>
+        </div>
+        <div class="pb cvr cvr-b">
+          <div style="font-size:2.4rem;margin-bottom:.8rem">💌</div>
+          <div style="font-family:'Playfair Display',serif;color:var(--p2);font-size:.8rem;text-align:center;line-height:1.85;font-style:italic;opacity:.9">
+            спасибо, что был(а)<br>частью этих дней
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="page-indicator" id="dots">
+    <span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+  </div>
+</div>
+
+<script>
+/* ── ОРИЕНТАЦИЯ: строгая блокировка ── */
+const rotGate = document.getElementById('rotGate');
+const scene = document.getElementById('scene');
+const intro = document.getElementById('intro');
+
+function checkOrientation() {
+  const isLandscape = window.innerWidth > window.innerHeight;
+  const isMobile = !window.matchMedia('(pointer:fine)').matches;
+  
+  if (isMobile) {
+    if (isLandscape) {
+      rotGate.classList.add('hidden');
+    } else {
+      rotGate.classList.remove('hidden');
+    }
+  } else {
+    rotGate.classList.add('hidden');
+  }
+}
+
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 50));
+checkOrientation();
+
+/* ── ЗВЁЗДЫ + ПАРАЛЛАКС ── */
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let W, H, stars = [];
+let tX = 0, tY = 0, sX = 0, sY = 0;
+const LAYERS = [{n:140,d:.7,sz:1.2},{n:60,d:1.8,sz:1.9},{n:24,d:3.2,sz:2.9}];
+
+function initStars() {
+  W = cv.width = window.innerWidth;
+  H = cv.height = window.innerHeight;
+  stars = [];
+  LAYERS.forEach(L => {
+    for(let i = 0; i < L.n; i++) {
+      const r = Math.random();
+      const col = r > .65 ? 'rgba(255,180,216,' : r > .38 ? 'rgba(195,175,255,' : 'rgba(255,252,255,';
+      stars.push({
+        ox: Math.random() * W, oy: Math.random() * H,
+        sz: .5 + Math.random() * L.sz, d: L.d, col,
+        tw: Math.random() * Math.PI * 2, tws: .012 + Math.random() * .024
+      });
+    }
+  });
+}
+
+function drawStars() {
+  sX += (tX - sX) * .04;
+  sY += (tY - sY) * .04;
+  ctx.clearRect(0, 0, W, H);
+  for(const s of stars) {
+    s.tw += s.tws;
+    const a = .35 + .65 * Math.abs(Math.sin(s.tw));
+    const px = (((s.ox + sX * s.d * 30) % W) + W) % W;
+    const py = (((s.oy + sY * s.d * 30) % H) + H) % H;
+    ctx.beginPath();
+    ctx.arc(px, py, s.sz, 0, Math.PI * 2);
+    ctx.fillStyle = s.col + a + ')';
+    ctx.fill();
+  }
+  requestAnimationFrame(drawStars);
+}
+
+window.addEventListener('resize', initStars);
+initStars();
+drawStars();
+
+/* ── ГИРОСКОП ── */
+const bw = document.getElementById('bw');
+let gyroOn = false, gRX = 0, gRY = 0, cRX = 0, cRY = 0;
+
+function gyroTick() {
+  cRX += (gRX - cRX) * .055;
+  cRY += (gRY - cRY) * .055;
+  tX = gRY / 30;
+  tY = gRX / 25;
+  
+  if (gyroOn) {
+    bw.style.animation = 'none';
+    const lev = Math.sin(Date.now() / 620) * 12;
+    bw.style.transform = `translateY(${lev}px) rotateX(${cRX}deg) rotateY(${cRY}deg)`;
+  }
+  if(gyroOn) requestAnimationFrame(gyroTick);
+}
+
+function onOri(e) {
+  const g = Math.max(-45, Math.min(45, e.gamma || 0));
+  const b = Math.max(-45, Math.min(45, (e.beta || 0) - 15));
+  gRY = g * .32;
+  gRX = -b * .18;
+  if(!gyroOn) { gyroOn = true; gyroTick(); }
+}
+
+function enableGyro() {
+  window.addEventListener('deviceorientation', onOri, {passive: true});
+}
+
+function askGyro() {
+  if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(r => { if(r === 'granted') enableGyro(); }).catch(() => {});
+  } else enableGyro();
+}
+
+/* ── ОТКРЫТИЕ ── */
+document.getElementById('openBtn').addEventListener('click', () => {
+  intro.classList.add('gone');
+  scene.classList.add('visible');
+  askGyro();
+  bw.style.animation = 'levitateSoft 4.2s ease-in-out infinite';
+});
+
+/* ── РЕАЛИСТИЧНОЕ ПЕРЕЛИСТЫВАНИЕ ПАЛЬЦЕМ ── */
+const pages = [
+  document.getElementById('p0'),
+  document.getElementById('p1'),
+  document.getElementById('p2'),
+  document.getElementById('p3')
+];
+const dots = document.querySelectorAll('.dot');
+const TOTAL = 4;
+let currentPage = 0;
+let isDragging = false;
+let startX = 0;
+let currentX = 0;
+let pageWidth = 0;
+
+// Обновление индикатора
+function updateDots() {
+  dots.forEach((d, i) => d.classList.toggle('active', i === currentPage));
+}
+
+// Установка прогресса перелистывания
+function setPageProgress(pageIndex, progress) {
+  if (pageIndex >= TOTAL) return;
+  const page = pages[pageIndex];
+  const angle = Math.min(180, Math.max(0, progress * 180));
+  page.style.transition = 'none';
+  page.style.transform = `rotateY(-${angle}deg)`;
+  
+  // Поднимаем z-index перелистываемой страницы
+  pages.forEach((p, i) => {
+    if (i === pageIndex) {
+      p.style.zIndex = 50 - i;
+    } else if (i < pageIndex) {
+      p.style.zIndex = 30 - i;
+    } else {
+      p.style.zIndex = 20 - i;
+    }
+  });
+}
+
+// Завершение перелистывания
+function finishFlip(pageIndex, progress) {
+  const page = pages[pageIndex];
+  page.style.transition = 'transform .5s cubic-bezier(.4,0,.2,1)';
+  
+  if (progress > 0.5 && pageIndex === currentPage) {
+    // Перелистнули вперёд
+    page.style.transform = 'rotateY(-180deg)';
+    page.classList.add('flipped');
+    currentPage++;
+  } else if (progress < 0.5 && pageIndex === currentPage - 1) {
+    // Вернули назад
+    page.style.transform = 'rotateY(0deg)';
+    page.classList.remove('flipped');
+    currentPage--;
+  } else {
+    // Возврат в исходное положение
+    page.style.transform = page.classList.contains('flipped') ? 'rotateY(-180deg)' : 'rotateY(0deg)';
+  }
+  
+  updateDots();
+  
+  // Восстанавливаем z-index
+  setTimeout(() => {
+    pages.forEach((p, i) => {
+      p.style.zIndex = 40 - i;
+    });
+  }, 500);
+}
+
+/* ── ОБРАБОТЧИКИ КАСАНИЙ ── */
+const book = document.getElementById('book');
+
+book.addEventListener('touchstart', (e) => {
+  if (!scene.classList.contains('visible')) return;
+  const touch = e.touches[0];
+  startX = touch.clientX;
+  pageWidth = book.offsetWidth;
+  isDragging = true;
+  
+  // Отключаем анимацию левитации на время драга
+  bw.style.animation = 'none';
+}, {passive: false});
+
+book.addEventListener('touchmove', (e) => {
+  if (!isDragging || !scene.classList.contains('visible')) return;
+  e.preventDefault();
+  
+  const touch = e.touches[0];
+  currentX = touch.clientX;
+  const deltaX = startX - currentX;
+  
+  // Определяем, какую страницу перелистываем
+  let targetPage = currentPage;
+  let progress = 0;
+  
+  if (deltaX > 0 && currentPage < TOTAL - 1) {
+    // Листаем вперёд
+    targetPage = currentPage;
+    progress = Math.min(1, deltaX / (pageWidth * 0.5));
+    setPageProgress(targetPage, progress);
+  } else if (deltaX < 0 && currentPage > 0) {
+    // Листаем назад
+    targetPage = currentPage - 1;
+    progress = 1 - Math.min(1, Math.abs(deltaX) / (pageWidth * 0.5));
+    setPageProgress(targetPage, progress);
+  }
+}, {passive: false});
+
+book.addEventListener('touchend', (e) => {
+  if (!isDragging) return;
+  isDragging = false;
+  
+  const deltaX = startX - currentX;
+  let targetPage = currentPage;
+  let progress = 0;
+  
+  if (deltaX > 0 && currentPage < TOTAL - 1) {
+    targetPage = currentPage;
+    progress = Math.min(1, deltaX / (pageWidth * 0.5));
+  } else if (deltaX < 0 && currentPage > 0) {
+    targetPage = currentPage - 1;
+    progress = 1 - Math.min(1, Math.abs(deltaX) / (pageWidth * 0.5));
+  }
+  
+  finishFlip(targetPage, progress);
+  
+  // Возвращаем левитацию
+  setTimeout(() => {
+    if (gyroOn) {
+      gyroTick();
+    } else {
+      bw.style.animation = 'levitateSoft 4.2s ease-in-out infinite';
+    }
+  }, 500);
+});
+
+/* ── ПОДДЕРЖКА МЫШИ ── */
+book.addEventListener('mousedown', (e) => {
+  if (!scene.classList.contains('visible')) return;
+  startX = e.clientX;
+  pageWidth = book.offsetWidth;
+  isDragging = true;
+  bw.style.animation = 'none';
+  
+  const onMouseMove = (e) => {
+    if (!isDragging) return;
+    currentX = e.clientX;
+    const deltaX = startX - currentX;
+    let targetPage = currentPage;
+    let progress = 0;
+    
+    if (deltaX > 0 && currentPage < TOTAL - 1) {
+      targetPage = currentPage;
+      progress = Math.min(1, deltaX / (pageWidth * 0.5));
+      setPageProgress(targetPage, progress);
+    } else if (deltaX < 0 && currentPage > 0) {
+      targetPage = currentPage - 1;
+      progress = 1 - Math.min(1, Math.abs(deltaX) / (pageWidth * 0.5));
+      setPageProgress(targetPage, progress);
+    }
+  };
+  
+  const onMouseUp = (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    
+    const deltaX = startX - currentX;
+    let targetPage = currentPage;
+    let progress = 0;
+    
+    if (deltaX > 0 && currentPage < TOTAL - 1) {
+      targetPage = currentPage;
+      progress = Math.min(1, deltaX / (pageWidth * 0.5));
+    } else if (deltaX < 0 && currentPage > 0) {
+      targetPage = currentPage - 1;
+      progress = 1 - Math.min(1, Math.abs(deltaX) / (pageWidth * 0.5));
+    }
+    
+    finishFlip(targetPage, progress);
+    
+    setTimeout(() => {
+      if (gyroOn) {
+        gyroTick();
+      } else {
+        bw.style.animation = 'levitateSoft 4.2s ease-in-out infinite';
+      }
+    }, 500);
+    
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  };
+  
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+});
+
+/* ── КЛАВИШИ ── */
+document.addEventListener('keydown', (e) => {
+  if (!scene.classList.contains('visible')) return;
+  if (e.key === 'ArrowRight' && currentPage < TOTAL - 1) {
+    const page = pages[currentPage];
+    page.style.transition = 'transform .5s cubic-bezier(.4,0,.2,1)';
+    page.style.transform = 'rotateY(-180deg)';
+    page.classList.add('flipped');
+    currentPage++;
+    updateDots();
+  } else if (e.key === 'ArrowLeft' && currentPage > 0) {
+    currentPage--;
+    const page = pages[currentPage];
+    page.style.transition = 'transform .5s cubic-bezier(.4,0,.2,1)';
+    page.style.transform = 'rotateY(0deg)';
+    page.classList.remove('flipped');
+    updateDots();
+  }
+});
+
+// Инициализация
+updateDots();
+</script>
+</body>
+</html>
